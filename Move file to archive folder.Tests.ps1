@@ -90,9 +90,9 @@ Describe 'send an e-mail to the admin when' {
                     MailTo = @('bob@contoso.com')
                     Tasks  = @(
                         @{
-                            # SourceFolderPath           = "\\\\contoso\\folderA"
-                            DestinationFolderPath      = "\\\\contoso\\folderB"
-                            DestinationFolderStructure = "Year\\Month"
+                            # SourceFolderPath           = "\\contoso\folderA"
+                            DestinationFolderPath      = "\\contoso\folderB"
+                            DestinationFolderStructure = "Year\Month"
                             OlderThanUnit              = "Month"
                             OlderThanQuantity          = 1
                         }
@@ -113,9 +113,9 @@ Describe 'send an e-mail to the admin when' {
                     MailTo = @('bob@contoso.com')
                     Tasks  = @(
                         @{
-                            SourceFolderPath           = "\\\\contoso\\folderA"
-                            # DestinationFolderPath      = "\\\\contoso\\folderB"
-                            DestinationFolderStructure = "Year\\Month"
+                            SourceFolderPath           = "\\contoso\folderA"
+                            # DestinationFolderPath      = "\\contoso\folderB"
+                            DestinationFolderStructure = "Year\Month"
                             OlderThanUnit              = "Month"
                             OlderThanQuantity          = 1
                         }
@@ -131,27 +131,52 @@ Describe 'send an e-mail to the admin when' {
                     $EntryType -eq 'Error'
                 }
             }
-            It 'DestinationFolderStructure is missing' {
-                @{
-                    MailTo = @('bob@contoso.com')
-                    Tasks  = @(
-                        @{
-                            SourceFolderPath      = "\\\\contoso\\folderA"
-                            DestinationFolderPath = "\\\\contoso\\folderB"
-                            # DestinationFolderStructure = "Year\\Month"
-                            OlderThanUnit         = "Month"
-                            OlderThanQuantity     = 1
-                        }
-                    )
-                } | ConvertTo-Json | Out-File @testOutParams
+            Context 'DestinationFolderStructure' {
+                It 'is missing' {
+                    @{
+                        MailTo = @('bob@contoso.com')
+                        Tasks  = @(
+                            @{
+                                SourceFolderPath      = "\\contoso\folderA"
+                                DestinationFolderPath = "\\contoso\folderB"
+                                # DestinationFolderStructure = "Year\\Month"
+                                OlderThanUnit         = "Month"
+                                OlderThanQuantity     = 1
+                            }
+                        )
+                    } | ConvertTo-Json | Out-File @testOutParams
                 
-                .$testScript @testParams
+                    .$testScript @testParams
                 
-                Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
+                    Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                     (&$MailAdminParams) -and ($Message -like "*$ImportFile*No 'DestinationFolderStructure' found*")
+                    }
+                    Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
+                        $EntryType -eq 'Error'
+                    }
                 }
-                Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                    $EntryType -eq 'Error'
+                It 'is not supported' {
+                    @{
+                        MailTo = @('bob@contoso.com')
+                        Tasks  = @(
+                            @{
+                                SourceFolderPath           = "\\contoso\folderA"
+                                DestinationFolderPath      = "\\contoso\folderB"
+                                DestinationFolderStructure = "wrong"
+                                OlderThanUnit              = "Month"
+                                OlderThanQuantity          = 1
+                            }
+                        )
+                    } | ConvertTo-Json | Out-File @testOutParams
+                
+                    .$testScript @testParams
+                
+                    Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
+                    (&$MailAdminParams) -and ($Message -like "*$ImportFile*Value 'wrong' is not supported by 'DestinationFolderStructure'. Valid options are 'Year-Month', 'Year\Month', 'Year' or 'YYYYMM'.*")
+                    }
+                    Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
+                        $EntryType -eq 'Error'
+                    }
                 }
             }
             Context 'OlderThanUnit' {
@@ -160,9 +185,9 @@ Describe 'send an e-mail to the admin when' {
                         MailTo = @('bob@contoso.com')
                         Tasks  = @(
                             @{
-                                SourceFolderPath           = "\\\\contoso\\folderA"
-                                DestinationFolderPath      = "\\\\contoso\\folderB"
-                                DestinationFolderStructure = "Year\\Month"
+                                SourceFolderPath           = "\\contoso\folderA"
+                                DestinationFolderPath      = "\\contoso\folderB"
+                                DestinationFolderStructure = "Year\Month"
                                 # OlderThanUnit              = "Month"
                                 OlderThanQuantity          = 1
                             }
@@ -183,9 +208,9 @@ Describe 'send an e-mail to the admin when' {
                         MailTo = @('bob@contoso.com')
                         Tasks  = @(
                             @{
-                                SourceFolderPath           = "\\\\contoso\\folderA"
-                                DestinationFolderPath      = "\\\\contoso\\folderB"
-                                DestinationFolderStructure = "Year\\Month"
+                                SourceFolderPath           = "\\contoso\folderA"
+                                DestinationFolderPath      = "\\contoso\folderB"
+                                DestinationFolderStructure = "Year\Month"
                                 OlderThanUnit              = "notSupported"
                                 OlderThanQuantity          = 1
                             }
@@ -208,9 +233,9 @@ Describe 'send an e-mail to the admin when' {
                         MailTo = @('bob@contoso.com')
                         Tasks  = @(
                             @{
-                                SourceFolderPath           = "\\\\contoso\\folderA"
-                                DestinationFolderPath      = "\\\\contoso\\folderB"
-                                DestinationFolderStructure = "Year\\Month"
+                                SourceFolderPath           = "\\contoso\folderA"
+                                DestinationFolderPath      = "\\contoso\folderB"
+                                DestinationFolderStructure = "Year\Month"
                                 OlderThanUnit              = "Month"
                                 # OlderThanQuantity          = 1
                             }
@@ -231,9 +256,9 @@ Describe 'send an e-mail to the admin when' {
                         MailTo = @('bob@contoso.com')
                         Tasks  = @(
                             @{
-                                SourceFolderPath           = "\\\\contoso\\folderA"
-                                DestinationFolderPath      = "\\\\contoso\\folderB"
-                                DestinationFolderStructure = "Year\\Month"
+                                SourceFolderPath           = "\\contoso\folderA"
+                                DestinationFolderPath      = "\\contoso\folderB"
+                                DestinationFolderStructure = "Year\Month"
                                 OlderThanUnit              = "Month"
                                 OlderThanQuantity          = 'a'
                             }

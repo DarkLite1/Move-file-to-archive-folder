@@ -234,6 +234,10 @@ Begin {
             if (-not $task.DestinationFolderStructure) {
                 throw "Input file '$ImportFile': No 'DestinationFolderStructure' found in one of the 'Tasks'."
             }
+
+            if ($task.DestinationFolderStructure -notMatch '^Year-Month$|^Year\\Month$|^Year$|^YYYYMM$') {
+                throw "Input file '$ImportFile': Value '$($task.DestinationFolderStructure)' is not supported by 'DestinationFolderStructure'. Valid options are 'Year-Month', 'Year\Month', 'Year' or 'YYYYMM'."
+            }
             #endregion
 
             #region OlderThanUnit
