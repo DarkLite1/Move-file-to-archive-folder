@@ -180,6 +180,54 @@ Describe 'send an e-mail to the admin when' {
                         $EntryType -eq 'Error'
                     }
                 }
+                It 'is not used and DestinationFolderPath is a local path' {
+                    @{
+                        MailTo = @('bob@contoso.com')
+                        Tasks  = @(
+                            @{
+                                # ComputerName               = $env:COMPUTERNAME
+                                SourceFolderPath           = "\\contoso\folderA"
+                                DestinationFolderPath      = "C:\folderB"
+                                DestinationFolderStructure = "Year\Month"
+                                OlderThanUnit              = "Month"
+                                OlderThanQuantity          = 1
+                            }
+                        )
+                    } | ConvertTo-Json | Out-File @testOutParams
+                
+                    .$testScript @testParams
+                
+                    Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
+                    (&$MailAdminParams) -and ($Message -like "*$ImportFile*When local paths are used the ComputerName is mandatory*")
+                    }
+                    Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
+                        $EntryType -eq 'Error'
+                    }
+                }
+                It 'is not used and SourceFolderPath is a local path' {
+                    @{
+                        MailTo = @('bob@contoso.com')
+                        Tasks  = @(
+                            @{
+                                # ComputerName               = $env:COMPUTERNAME
+                                SourceFolderPath           = "C:\folderA"
+                                DestinationFolderPath      = "\\contoso\folderB"
+                                DestinationFolderStructure = "Year\Month"
+                                OlderThanUnit              = "Month"
+                                OlderThanQuantity          = 1
+                            }
+                        )
+                    } | ConvertTo-Json | Out-File @testOutParams
+                
+                    .$testScript @testParams
+                
+                    Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
+                        (&$MailAdminParams) -and ($Message -like "*$ImportFile*When local paths are used the ComputerName is mandatory*")
+                    }
+                    Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
+                        $EntryType -eq 'Error'
+                    }
+                }
             }
             Context 'DestinationFolderStructure' {
                 It 'is missing' {
@@ -327,7 +375,7 @@ Describe 'send an e-mail to the admin when' {
             }
         }
     }
-} -tag test
+} -Tag test
 Describe "when 'Remove' is 'file'" {
     Context  "and 'OlderThanQuantity' is '0'" {
         BeforeAll {

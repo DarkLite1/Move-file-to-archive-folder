@@ -258,7 +258,7 @@ Begin {
             }
             #endregion
 
-            #region SourceFolderPath
+            #region ComputerName and non UNC path
             if (
                 $task.ComputerName -and 
                 (
@@ -267,6 +267,18 @@ Begin {
                 )
             ) {
                 throw "Input file '$ImportFile' with ComputerName '$($task.ComputerName)' SourceFolderPath '$($task.SourceFolderPath)' and DestinationFolderPath '$($task.DestinationFolderPath)': When ComputerName is used only local paths are allowed (to avoid the double hop issue)."
+            }
+            #endregion
+
+            #region Local paths without ComputerName
+            if (
+                (-not $task.ComputerName) -and 
+                (
+                    ($task.SourceFolderPath -notMatch '^\\\\') -or
+                    ($task.DestinationFolderPath -NotMatch '^\\\\')
+                )
+            ) {
+                throw "Input file '$ImportFile' with ComputerName '$($task.ComputerName)' SourceFolderPath '$($task.SourceFolderPath)' and DestinationFolderPath '$($task.DestinationFolderPath)': When local paths are used the ComputerName is mandatory."
             }
             #endregion
         }
