@@ -291,7 +291,14 @@ Process {
             $invokeParams.ArgumentList[4]
             Write-Verbose $M; Write-EventLog @EventVerboseParams -Message $M
 
-            $jobs += Start-Job @invokeParams
+            $jobs += if ($task.ComputerName) {
+                $invokeParams.ComputerName = $task.ComputerName
+                $invokeParams.AsJob = $true
+                Invoke-Command @invokeParams
+            }
+            else {
+                Start-Job @invokeParams
+            }
             
             # & $scriptBlock -Type $task.Remove -Path $task.Path -OlderThanDays $task.OlderThanDays -RemoveEmptyFolders $task.RemoveEmptyFolders
 
