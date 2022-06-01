@@ -44,7 +44,9 @@
 
 [CmdLetBinding()]
 Param (
-    [String]$ScriptName = 'Auto Archive',
+    [Parameter(Mandatory)]
+    [String]$ScriptName,
+    [Parameter(Mandatory)]
     [String]$ImportFile,
     [String]$LogFolder = $env:POWERSHELL_LOG_FOLDER,
     [String]$ScriptAdmin = $env:POWERSHELL_SCRIPT_ADMIN
