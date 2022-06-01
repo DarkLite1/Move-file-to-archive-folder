@@ -1,0 +1,38 @@
+{
+  "MailTo": ["bob@constoso.com"],
+  "Tasks": [
+    {
+      "SourceFolderPath": "\\\\contoso\\folderA",
+      "DestinationFolderPath": "\\\\contoso\\folderB",
+      "DestinationFolderStructure": "Year-Month",
+      "OlderThanUnit": "Day",
+      "OlderThanQuantity": 1,
+      "?": "Move files older than 1 day to folder '2022-01'"
+    },
+    {
+      "SourceFolderPath": "\\\\contoso\\folderA",
+      "DestinationFolderPath": "\\\\contoso\\folderB",
+      "DestinationFolderStructure": "Year\\Month",
+      "OlderThanUnit": "Month",
+      "OlderThanQuantity": 1,
+      "?": "Move files older than 1 month to folder '01' (January) within folder '2022' (year)"
+    },
+    {
+      "SourceFolderPath": "\\\\contoso\\folderA",
+      "DestinationFolderPath": "\\\\contoso\\folderB",
+      "DestinationFolderStructure": "Year",
+      "OlderThanUnit": "Year",
+      "OlderThanQuantity": 1,
+      "?": "Move files older than 1 year to folder '2022'"
+    },
+    {
+      "SourceFolderPath": "\\\\contoso\\folderA",
+      "DestinationFolderPath": "\\\\contoso\\folderB",
+      "DestinationFolderStructure": "YYYYMM",
+      "OlderThanUnit": "Day",
+      "OlderThanQuantity": 0,
+      "?": "Move all files to folder '202201' (January 2022)"
+    }
+    
+  ]
+}
