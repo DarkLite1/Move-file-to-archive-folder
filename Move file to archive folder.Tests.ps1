@@ -22,7 +22,7 @@ Describe 'the mandatory parameters are' {
         (Get-Command $testScript).Parameters[$_].Attributes.Mandatory | 
         Should -BeTrue
     }
-} -tag test
+} -Tag test
 Describe 'send an e-mail to the admin when' {
     BeforeAll {
         $MailAdminParams = {
@@ -154,78 +154,105 @@ Describe 'send an e-mail to the admin when' {
                     $EntryType -eq 'Error'
                 }
             }
-            It 'OlderThanUnit is missing' {
-                @{
-                    MailTo = @('bob@contoso.com')
-                    Tasks  = @(
-                        @{
-                            SourceFolderPath           = "\\\\contoso\\folderA"
-                            DestinationFolderPath      = "\\\\contoso\\folderB"
-                            DestinationFolderStructure = "Year\\Month"
-                            # OlderThanUnit              = "Month"
-                            OlderThanQuantity          = 1
-                        }
-                    )
-                } | ConvertTo-Json | Out-File @testOutParams
+            Context 'OlderThanUnit' {
+                It 'is missing' {
+                    @{
+                        MailTo = @('bob@contoso.com')
+                        Tasks  = @(
+                            @{
+                                SourceFolderPath           = "\\\\contoso\\folderA"
+                                DestinationFolderPath      = "\\\\contoso\\folderB"
+                                DestinationFolderStructure = "Year\\Month"
+                                # OlderThanUnit              = "Month"
+                                OlderThanQuantity          = 1
+                            }
+                        )
+                    } | ConvertTo-Json | Out-File @testOutParams
             
-                .$testScript @testParams
+                    .$testScript @testParams
                             
-                Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
+                    Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                 (&$MailAdminParams) -and ($Message -like "*$ImportFile*No 'OlderThanUnit' found*")
+                    }
+                    Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
+                        $EntryType -eq 'Error'
+                    }
                 }
-                Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                    $EntryType -eq 'Error'
-                }
-            }
-            It 'OlderThanUnit is missing' {
-                @{
-                    MailTo = @('bob@contoso.com')
-                    Tasks  = @(
-                        @{
-                            SourceFolderPath           = "\\\\contoso\\folderA"
-                            DestinationFolderPath      = "\\\\contoso\\folderB"
-                            DestinationFolderStructure = "Year\\Month"
-                            OlderThanUnit              = "Month"
-                            # OlderThanQuantity          = 1
-                        }
-                    )
-                } | ConvertTo-Json | Out-File @testOutParams
+                It 'is not supported' {
+                    @{
+                        MailTo = @('bob@contoso.com')
+                        Tasks  = @(
+                            @{
+                                SourceFolderPath           = "\\\\contoso\\folderA"
+                                DestinationFolderPath      = "\\\\contoso\\folderB"
+                                DestinationFolderStructure = "Year\\Month"
+                                OlderThanUnit              = "notSupported"
+                                OlderThanQuantity          = 1
+                            }
+                        )
+                    } | ConvertTo-Json | Out-File @testOutParams
             
-                .$testScript @testParams
+                    .$testScript @testParams
                             
-                Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                (&$MailAdminParams) -and ($Message -like "*$ImportFile*Property 'OlderThanQuantity' not found. Use value number '0' to move all files*")
-                }
-                Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                    $EntryType -eq 'Error'
+                    Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
+                (&$MailAdminParams) -and ($Message -like "*$ImportFile*Value 'notSupported' is not supported by 'OlderThanUnit'. Valid options are 'Day', 'Month' or 'Year'*")
+                    }
+                    Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
+                        $EntryType -eq 'Error'
+                    }
                 }
             }
-            It 'OlderThanQuantity is not a number' {
-                @{
-                    MailTo = @('bob@contoso.com')
-                    Tasks  = @(
-                        @{
-                            SourceFolderPath           = "\\\\contoso\\folderA"
-                            DestinationFolderPath      = "\\\\contoso\\folderB"
-                            DestinationFolderStructure = "Year\\Month"
-                            OlderThanUnit              = "Month"
-                            OlderThanQuantity          = 'a'
-                        }
-                    )
-                } | ConvertTo-Json | Out-File @testOutParams
-
-                .$testScript @testParams
+            Context 'OlderThanQuantity' {
+                It 'is missing' {
+                    @{
+                        MailTo = @('bob@contoso.com')
+                        Tasks  = @(
+                            @{
+                                SourceFolderPath           = "\\\\contoso\\folderA"
+                                DestinationFolderPath      = "\\\\contoso\\folderB"
+                                DestinationFolderStructure = "Year\\Month"
+                                OlderThanUnit              = "Month"
+                                # OlderThanQuantity          = 1
+                            }
+                        )
+                    } | ConvertTo-Json | Out-File @testOutParams
             
-                Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                (&$MailAdminParams) -and ($Message -like "*$ImportFile*Property 'OlderThanQuantity' needs to be a number, the value 'a' is not supported*")
+                    .$testScript @testParams
+                            
+                    Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
+                (&$MailAdminParams) -and ($Message -like "*$ImportFile*Property 'OlderThanQuantity' not found. Use value number '0' to move all files*")
+                    }
+                    Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
+                        $EntryType -eq 'Error'
+                    }
                 }
-                Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                    $EntryType -eq 'Error'
+                It 'is not a number' {
+                    @{
+                        MailTo = @('bob@contoso.com')
+                        Tasks  = @(
+                            @{
+                                SourceFolderPath           = "\\\\contoso\\folderA"
+                                DestinationFolderPath      = "\\\\contoso\\folderB"
+                                DestinationFolderStructure = "Year\\Month"
+                                OlderThanUnit              = "Month"
+                                OlderThanQuantity          = 'a'
+                            }
+                        )
+                    } | ConvertTo-Json | Out-File @testOutParams
+
+                    .$testScript @testParams
+            
+                    Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
+                (&$MailAdminParams) -and ($Message -like "*$ImportFile*Property 'OlderThanQuantity' needs to be a number, the value 'a' is not supported*")
+                    }
+                    Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
+                        $EntryType -eq 'Error'
+                    }
                 }
             }
         }
     }
-} -tag test
+} -Tag test
 Describe "when 'Remove' is 'file'" {
     Context  "and 'OlderThanQuantity' is '0'" {
         BeforeAll {

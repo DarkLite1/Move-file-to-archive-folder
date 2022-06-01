@@ -48,6 +48,7 @@ Param (
     [String]$ScriptName,
     [Parameter(Mandatory)]
     [String]$ImportFile,
+    [Int]$MaxConcurrentJobs = 4,
     [String]$LogFolder = $env:POWERSHELL_LOG_FOLDER,
     [String]$ScriptAdmin = $env:POWERSHELL_SCRIPT_ADMIN
 )
@@ -55,19 +56,19 @@ Param (
 Begin {
     $scriptBlock = {    
         Param (
-            [parameter(Mandatory)]
+            [Parameter(Mandatory)]
             [ValidateScript( { Test-Path $_ -PathType Container })]
             [String]$Source,
-            [parameter(Mandatory)]
+            [Parameter(Mandatory)]
             [ValidateScript( { Test-Path $_ -PathType Container })]
             [String]$Destination,
-            [parameter(Mandatory)]
+            [Parameter(Mandatory)]
             [ValidateSet('Year', 'Year\Month', 'Year-Month', 'YYYYMM')]
             [String]$Structure,
-            [parameter(Mandatory)]
+            [Parameter(Mandatory)]
             [ValidateSet('Day', 'Month', 'Year')]
             [String]$OlderThan,
-            [parameter(Mandatory)]
+            [Parameter(Mandatory)]
             [Int]$Quantity
         )
     
@@ -239,6 +240,10 @@ Begin {
             if (-not $task.OlderThanUnit) {
                 throw "Input file '$ImportFile': No 'OlderThanUnit' found in one of the 'Tasks'."
             }
+
+            if ($task.OlderThanUnit -notMatch '^Day$|^Month$|^Year$') {
+                throw "Input file '$ImportFile': Value '$($task.OlderThanUnit)' is not supported by 'OlderThanUnit'. Valid options are 'Day', 'Month' or 'Year'."
+            }
             #endregion
 
             #region OlderThanQuantity
@@ -263,42 +268,80 @@ Begin {
 }
 
 Process {
-    ForEach ($Line in $FunctionFeed) {
-        Write-Verbose "Source '$($Line.Source)'"
-        Write-Verbose "Destination '$($Line.Destination)'"
-        Write-Verbose "Structure '$($Line.Structure)'"
-        Write-Verbose "OlderThan '$($Line.OlderThan)'"
-        Write-Verbose "Quantity '$($Line.Quantity)'`n"
+    Try {
+        #region Remove files/folders on remote machines
+        $jobs = @()
 
-        [Array]$HTMLList += "Source: $(ConvertTo-HTMLlinkHC -Path $Line.Source -Name $Line.Source)<br>
-                    Destination: $(ConvertTo-HTMLlinkHC -Path $Line.Destination -Name $Line.Destination)<br>
-                    Folder structure: $($Line.Structure)<br>
-                    Older than: $($Line.Quantity) $($Line.OlderThan)(s)"
-
-        $MoveParams = @{
-            Source      = $Line.Source
-            Destination = $Line.Destination
-            Structure   = $Line.Structure
-            OlderThan   = $Line.OlderThan
-            Quantity    = $Line.Quantity
-        }
-
-        $MoveParams.Values | ForEach-Object {
-            if ($_ -eq $null) {
-                Write-Error "Incomplete parameter set, check the input file: $Line."
-                Continue
+        foreach ($task in $Tasks) {
+            $invokeParams = @{
+                ScriptBlock  = $scriptBlock
+                ArgumentList = $task.SourceFolderPath, 
+                $task.DestinationFolderPath, 
+                $task.DestinationFolderStructure, 
+                $task.OlderThanUnit, 
+                $task.OlderThanQuantity
             }
+
+            $M = "Start job on '{0}' with SourceFolderPath '{1}' DestinationFolderPath '{2}' DestinationFolderStructure '{3}' OlderThanUnit '{4}' OlderThanQuantity '{5}'" -f $env:COMPUTERNAME,
+            $invokeParams.ArgumentList[0], $invokeParams.ArgumentList[1],
+            $invokeParams.ArgumentList[2], $invokeParams.ArgumentList[3], 
+            $invokeParams.ArgumentList[4]
+            Write-Verbose $M; Write-EventLog @EventVerboseParams -Message $M
+
+            $jobs += Start-Job @invokeParams
+            
+            # & $scriptBlock -Type $task.Remove -Path $task.Path -OlderThanDays $task.OlderThanDays -RemoveEmptyFolders $task.RemoveEmptyFolders
+
+            Wait-MaxRunningJobsHC -Name $jobs -MaxThreads $MaxConcurrentJobs
         }
-        
-        $LogFileDetail = New-LogFileNameHC -LogFolder $LogFolder -Name "$($Line.Source).log" -Date ScriptStartTime -Unique
-        
-        Try {
-            Move-ToArchiveHC @MoveParams *>> $LogFileDetail
+
+        $M = "Wait for all $($jobs.count) jobs to finish"
+        Write-Verbose $M; Write-EventLog @EventOutParams -Message $M
+
+        # $jobResults = if ($jobs) { $jobs | Wait-Job -Force | Receive-Job }
+        $jobResults = if ($jobs) { 
+            Receive-Job -Job $jobs -Wait -AutoRemoveJob -Force 
         }
-        Catch {
-            "Move-ToArchiveHC | $(Get-Date -Format "dd/MM/yyyy HH:mm:ss") | ERROR: $_" | Out-File $LogFileDetail
-            Write-EventLog @EventErrorParams -Message "Failure:`n`n $_"
+        #endregion
+
+        #region Export results to Excel log file
+        $exportToExcel = foreach (
+            $job in 
+            $jobResults | Where-Object { $_.Items }
+        ) {
+            $job.Items | Select-Object -Property @{
+                Name       = 'ComputerName'; 
+                Expression = { $job.ComputerName } 
+            },
+            'Type', @{
+                Name       = 'Path'; 
+                Expression = { $_.FullName } 
+            }, 'CreationTime', 'Action', 'Error'
         }
+
+        if ($exportToExcel) {
+            $M = "Export $($exportToExcel.Count) rows to Excel"
+            Write-Verbose $M; Write-EventLog @EventOutParams -Message $M
+            
+            $excelParams = @{
+                Path               = $LogFile + '- Log.xlsx'
+                WorksheetName      = 'Overview'
+                TableName          = 'Overview'
+                NoNumberConversion = '*'
+                AutoSize           = $true
+                FreezeTopRow       = $true
+            }
+            $exportToExcel | Export-Excel @excelParams
+
+            $mailParams.Attachments = $excelParams.Path
+        }
+        #endregion
+    }
+    Catch {
+        Write-Warning $_
+        Send-MailHC -To $ScriptAdmin -Subject 'FAILURE' -Priority 'High' -Message $_ -Header $ScriptName
+        Write-EventLog @EventErrorParams -Message "FAILURE:`n`n- $_"
+        Write-EventLog @EventEndParams; Exit 1
     }
 }
 
