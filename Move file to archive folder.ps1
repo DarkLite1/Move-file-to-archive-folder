@@ -257,6 +257,18 @@ Begin {
                 throw "Input file '$ImportFile' SourceFolderPath '$($task.SourceFolderPath)': Property 'OlderThanQuantity' needs to be a number, the value '$($task.OlderThanQuantity)' is not supported. Use value number '0' to move all files."
             }
             #endregion
+
+            #region SourceFolderPath
+            if (
+                $task.ComputerName -and 
+                (
+                    ($task.SourceFolderPath -Match '^\\\\') -or
+                    ($task.DestinationFolderPath -Match '^\\\\')
+                )
+            ) {
+                throw "Input file '$ImportFile' with ComputerName '$($task.ComputerName)' SourceFolderPath '$($task.SourceFolderPath)' and DestinationFolderPath '$($task.DestinationFolderPath)': When ComputerName is used only local paths are allowed (to avoid the double hop issue)."
+            }
+            #endregion
         }
         #endregion
 
