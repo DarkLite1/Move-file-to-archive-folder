@@ -108,17 +108,16 @@ Begin {
                 }
             }
     
-            Write-Output @"
-        ComputerName: $Env:COMPUTERNAME
-        Source:       $Source
-        Destination:  $Destination
-        Structure:    $Structure
-        OlderThan:    $OlderThan
-        Quantity:     $Quantity
-        Date:         $($Today.ToString('dd/MM/yyyy hh:mm:ss'))
-    
-        Moved file:
-"@
+            [PSCustomObject]@{
+                ComputerName = $Env:COMPUTERNAME
+                Source       = $Source
+                Destination  = $Destination
+                Structure    = $Structure
+                OlderThan    = $OlderThan
+                Quantity     = $Quantity
+                Date         = $($Today.ToString('dd/MM/yyyy hh:mm:ss'))
+            }
+
         }
     
         Process {

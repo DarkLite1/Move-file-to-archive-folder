@@ -2,22 +2,25 @@
   "MailTo": ["bob@constoso.com"],
   "Tasks": [
     {
-      "SourceFolderPath": "\\\\contoso\\folderA",
-      "DestinationFolderPath": "\\\\contoso\\folderB",
+      "ComputerName": "PC1",
+      "SourceFolderPath": "C:\\folderA",
+      "DestinationFolderPath": "C:\\folderB",
       "DestinationFolderStructure": "Year-Month",
       "OlderThanUnit": "Day",
       "OlderThanQuantity": 1,
       "?": "Move files older than 1 day to folder '2022-01'"
     },
     {
-      "SourceFolderPath": "\\\\contoso\\folderA",
-      "DestinationFolderPath": "\\\\contoso\\folderB",
+      "ComputerName": "PC2",
+      "SourceFolderPath": "C:\\folderA",
+      "DestinationFolderPath": "C:\\folderB",
       "DestinationFolderStructure": "Year\\Month",
       "OlderThanUnit": "Month",
       "OlderThanQuantity": 1,
       "?": "Move files older than 1 month to folder '01' (January) within folder '2022' (year)"
     },
     {
+      "ComputerName": null,
       "SourceFolderPath": "\\\\contoso\\folderA",
       "DestinationFolderPath": "\\\\contoso\\folderB",
       "DestinationFolderStructure": "Year",
@@ -26,6 +29,7 @@
       "?": "Move files older than 1 year to folder '2022'"
     },
     {
+      "ComputerName": null,
       "SourceFolderPath": "\\\\contoso\\folderA",
       "DestinationFolderPath": "\\\\contoso\\folderB",
       "DestinationFolderStructure": "YYYYMM",
@@ -33,6 +37,5 @@
       "OlderThanQuantity": 0,
       "?": "Move all files to folder '202201' (January 2022)"
     }
-    
   ]
 }
