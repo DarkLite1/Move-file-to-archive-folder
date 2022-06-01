@@ -22,7 +22,7 @@ Describe 'the mandatory parameters are' {
         (Get-Command $testScript).Parameters[$_].Attributes.Mandatory | 
         Should -BeTrue
     }
-} -Tag test
+}
 Describe 'send an e-mail to the admin when' {
     BeforeAll {
         $MailAdminParams = {
@@ -277,7 +277,7 @@ Describe 'send an e-mail to the admin when' {
             }
         }
     }
-} -Tag test
+}
 Describe "when 'Remove' is 'file'" {
     Context  "and 'OlderThanQuantity' is '0'" {
         BeforeAll {
