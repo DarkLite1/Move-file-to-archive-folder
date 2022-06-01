@@ -53,98 +53,21 @@ Param (
 )
 
 Begin {
-    Function Move-ToArchiveHC {
-        <#
-            .SYNOPSIS
-                Moves files to folders based on their creation date.
-    
-            .DESCRIPTION
-                Moves files to folders, where the destination folder names are automatically created based on the file's creation date (year/month). This is useful in situation where files need to be archived by year for example. When a file already exists on the destination it will be overwritten. When a file is in use by another process, we can't move it so we only report that it's in use, no error is thrown.
-    
-            .PARAMETER Source
-                The source folder where we will pick up the files to move them to the destination folder. This folder is only used to pick up files on the root directory, so not recursively.
-    
-            .PARAMETER Destination
-                The destination folder where the files will be moved to. When left empty, the files will be moved to sub folders that will be created in the source folder.
-    
-            .PARAMETER Structure
-                The folder structure that will be used on the destination. The files will be moved based on their creation date. The default value is 'Year-Month'. Valid options are:
-    
-                'Year'
-                C\SourceFolder\2014
-                C\SourceFolder\2014\File december.txt
-    
-                'Year\Month'
-                C\SourceFolder\2014
-                C\SourceFolder\2014\12
-                C\SourceFolder\2014\12\File december.txt
-    
-                'Year-Month'
-                C\SourceFolder\2014-12
-                C\SourceFolder\2014-12\File december.txt
-    
-                'YYYYMM'
-                C\SourceFolder\201504
-                C\SourceFolder\201504\File.txt
-    
-            .PARAMETER OlderThan
-                This is a filter to only archive files that are older than x days/months/years, where 'x' is defined by the parameter 'Quantity'. When 'OlderThan' and 'Quantity' are not used, all files will be moved an no filtering will take place. Valid options are:
-                'Day'
-                'Month'
-                'Year'
-    
-            .PARAMETER Quantity
-                Quantity defines the number of days/months/years defined for 'OlderThan'. Valid options are only numbers.
-    
-                -OlderThan Day -Quantity '3'    > All files older than 3 days will be moved
-                -OlderThan Month -Quantity '1'  > All files older than 1 month will be moved (all files older than this month will be moved)
-                <blanc>                         > All files will be moved, regardless of their creation date
-    
-            .EXAMPLE
-                Move-ToArchiveHC -Source 'T:\Truck movements' -Verbose
-                Moves all files based on their creation date from the folder 'T:\Truck movements' to the folders:
-                'T:\Truck movements\2014-01\File Jan 2014.txt', 'T:\Truck movements\2014-02\File Feb 2014.txt', ..
-    
-            .EXAMPLE
-                Move-ToArchiveHC -Source 'T:\GPS' -Destination 'C:\Archive' -Structure Year\Month -OlderThan Day -Quantity '3' -Verbose
-                Moves all files older than 3 days, based on their creation date, from the folder 'T:\GPS' to the folders:
-                'C:\Archive\2014\01\2014-01-01.xml', 'C:\Archive\2014\01\2014-01-02.xml', 'C:\Archive\2014\01\2014-01-03.xml' ..
-    
-            .NOTES
-                CHANGELOG
-                2014/09/12 Function born
-                2014/09/16 Added filter options 'OlderThan' & 'Quantity'
-                2014/09/17 Improved error handling when the destination file is already present
-                2014/09/18 Improved help info
-                2015/01/20 Improved error reporting
-                2015/02/03 Added output in case there is nothing to copy
-                2015/04/08 Added 'Structure YYYYMM'
-                2017/05/30 Changed to overwrite file in case it's already present on the destination
-                           Simplified logging and code
-                2017/07/17 Improved logging of destination folder
-    
-                AUTHOR Brecht.Gijbels@heidelbergcement.com #>
-    
-        [CmdletBinding(SupportsShouldProcess = $True, DefaultParameterSetName = 'A')]
+    $scriptBlock = {    
         Param (
-            [parameter(Mandatory = $true, Position = 0, ParameterSetName = 'A')]
-            [parameter(Mandatory = $true, Position = 0, ParameterSetName = 'B')]
-            [ValidateNotNullOrEmpty()]
+            [parameter(Mandatory)]
             [ValidateScript( { Test-Path $_ -PathType Container })]
             [String]$Source,
-            [parameter(Mandatory = $false, Position = 1, ParameterSetName = 'A')]
-            [parameter(Mandatory = $false, Position = 1, ParameterSetName = 'B')]
-            [ValidateNotNullOrEmpty()]
+            [parameter(Mandatory)]
             [ValidateScript( { Test-Path $_ -PathType Container })]
-            [String]$Destination = $Source,
-            [parameter(Mandatory = $false, ParameterSetName = 'A')]
-            [parameter(Mandatory = $false, ParameterSetName = 'B')]
+            [String]$Destination,
+            [parameter(Mandatory)]
             [ValidateSet('Year', 'Year\Month', 'Year-Month', 'YYYYMM')]
-            [String]$Structure = 'Year-Month',
-            [parameter(Mandatory = $true, ParameterSetName = 'B')]
+            [String]$Structure,
+            [parameter(Mandatory)]
             [ValidateSet('Day', 'Month', 'Year')]
             [String]$OlderThan,
-            [parameter(Mandatory = $true, ParameterSetName = 'B')]
+            [parameter(Mandatory)]
             [Int]$Quantity
         )
     
@@ -258,34 +181,78 @@ Begin {
             }
         }
     }
-    
-    
+
     Try {
-        $HTMLList = $HTMLTargets = $MailTo = $null
-
-        $null = Get-ScriptRuntimeHC -Start
-
-        $ImportFileName = (Get-Item $ImportFile -EA Stop).BaseName
-        $ScriptName += ' (' + $ImportFileName + ')'
-
         Import-EventLogParamsHC -Source $ScriptName
         Write-EventLog @EventStartParams
+        Get-ScriptRuntimeHC -Start
 
-        $File = Get-Content $ImportFile | Remove-CommentsHC
-        
-        $FunctionFeed = $File | Get-ValueFromArrayHC -Exclude MailTo | 
-        ConvertFrom-Csv -Delimiter ',' -Header 'Source', 'Destination', 
-        'Structure', 'OlderThan', 'Quantity'
-        
-        if (-not ($MailTo = $File | Get-ValueFromArrayHC MailTo -Delimiter ',')) {
-            throw "No 'MailTo' found in the input file."
+        #region Logging
+        try {
+            $LogParams = @{
+                LogFolder    = New-Item -Path $LogFolder -ItemType 'Directory' -Force -ErrorAction 'Stop'
+                Name         = $ScriptName
+                Date         = 'ScriptStartTime'
+                NoFormatting = $true
+            }
+            $LogFile = New-LogFileNameHC @LogParams
         }
-
-        if (-not $FunctionFeed) {
-            throw 'The input file was empty.'
+        Catch {
+            throw "Failed creating the log folder '$LogFolder': $_"
         }
+        #endregion
 
-        $LogFolder = New-FolderHC -Path $LogFolder -ChildPath "Auto Archive\$ScriptName"
+        #region Import .json file
+        $M = "Import .json file '$ImportFile'"
+        Write-Verbose $M; Write-EventLog @EventOutParams -Message $M
+
+        $file = Get-Content $ImportFile -Raw -EA Stop | ConvertFrom-Json
+        #endregion
+
+        #region Test .json file properties
+        if (-not ($MailTo = $file.MailTo)) {
+            throw "Input file '$ImportFile': No 'MailTo' addresses found."
+        }
+        if (-not ($Tasks = $file.Tasks)) {
+            throw "Input file '$ImportFile': No 'Tasks' found."
+        }
+        foreach ($task in $Tasks) {
+            #region SourceFolderPath
+            if (-not $task.SourceFolderPath) {
+                throw "Input file '$ImportFile': No 'SourceFolderPath' found in one of the 'Tasks'."
+            }
+            #endregion
+
+            #region DestinationFolderPath
+            if (-not $task.DestinationFolderPath) {
+                throw "Input file '$ImportFile': No 'DestinationFolderPath' found in one of the 'Tasks'."
+            }
+            #endregion
+
+            #region DestinationFolderStructure
+            if (-not $task.DestinationFolderStructure) {
+                throw "Input file '$ImportFile': No 'DestinationFolderStructure' found in one of the 'Tasks'."
+            }
+            #endregion
+
+            #region OlderThanUnit
+            if (-not $task.OlderThanUnit) {
+                throw "Input file '$ImportFile': No 'OlderThanUnit' found in one of the 'Tasks'."
+            }
+            #endregion
+
+            #region OlderThanQuantity
+            if ($task.PSObject.Properties.Name -notContains 'OlderThanQuantity') {
+                throw "Input file '$ImportFile' SourceFolderPath '$($task.SourceFolderPath)': Property 'OlderThanQuantity' not found. Use value number '0' to move all files."
+            }
+            if (-not ($task.OlderThanQuantity -is [int])) {
+                throw "Input file '$ImportFile' SourceFolderPath '$($task.SourceFolderPath)': Property 'OlderThanQuantity' needs to be a number, the value '$($task.OlderThanQuantity)' is not supported. Use value number '0' to move all files."
+            }
+            #endregion
+        }
+        #endregion
+
+        $mailParams = @{ }
     }
     Catch {
         Write-Warning $_
