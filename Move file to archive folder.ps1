@@ -440,6 +440,8 @@ End {
         #endregion
 
         #region Mail subject and priority
+        $mailParams.Priority = 'Normal'
+
         $mailParams.Subject = '{0} file{1} moved' -f $counter.movedFiles, $(
             if ($counter.movedFiles -gt 1) { 's' }
         )
@@ -456,90 +458,80 @@ End {
         #endregion
 
         #region Create html lists
-        $errorsHtmlList = if ($unknownErrorCount) {
-            "<p>During removal <b>$unknownErrorCount non terminating {0} detected:{1}</p>" -f $(
-                if ($unknownErrorCount -eq 1) {
-                    'error</b> was'
-                }
-                else {
-                    'errors</b> were'
-                }
+        $systemErrorsHtmlList = if ($counter.systemErrors) {
+            "<p>Detected <b>{0} non terminating error{1}:{2}</p>" -f $counter.systemErrors, 
+            $(
+                if ($counter.systemErrors -gt 1) { 's' }
             ),
-            $($Error.Exception.Message | Where-Object { $_ } | ConvertTo-HtmlListHC)
+            $(
+                $Error.Exception.Message | Where-Object { $_ } | 
+                ConvertTo-HtmlListHC
+            )
         }
 
         $jobResultsHtmlListItems = foreach (
-            $job in 
-            $jobResults | Sort-Object -Property 'Name', 'Path', 'ComputerName'
+            $task in 
+            $Tasks | Sort-Object -Property 'SourceFolderPath'
         ) {
-            "{0}<br>{1}<br>{2}{3}" -f 
+            'From: {0}<br>To: {1}<br>{2}<br>Moved: {3}{4}{5}' -f 
             $(
-                if ($job.Path -match '^\\\\') {
-                    '<a href="{0}">{1}</a>' -f $job.Path, $(
-                        if ($job.Name) { $job.Name }
-                        else { $job.Path }
-                    )
+                if ($task.SourceFolderPath -match '^\\\\') {
+                    '<a href="{0}">{0}</a>' -f $task.SourceFolderPath
                 }
                 else {
-                    $uncPath = $job.Path -Replace '^.{2}', (
-                        '\\{0}\{1}$' -f $job.ComputerName, $job.Path[0]
+                    $uncPath = $task.SourceFolderPath -Replace '^.{2}', (
+                        '\\{0}\{1}$' -f $task.ComputerName, $task.SourceFolderPath[0]
                     )
-                    '<a href="{0}">{1}</a>' -f $uncPath, $(
-                        if ($job.Name) { $job.Name }
-                        else { $uncPath }
+                    '<a href="{0}">{0}</a>' -f $uncPath
+                }
+            ), 
+            $(
+                if ($task.DestinationFolderPath -match '^\\\\') {
+                    '<a href="{0}">{0}</a>' -f $task.DestinationFolderPath
+                }
+                else {
+                    $uncPath = $task.DestinationFolderPath -Replace '^.{2}', (
+                        '\\{0}\{1}$' -f $task.ComputerName, $task.DestinationFolderPath[0]
+                    )
+                    '<a href="{0}">{0}</a>' -f $uncPath
+                }
+            ), 
+            $(
+                if ($task.OlderThanQuantity -eq 0) {
+                    'Move all files regardless their creation date'
+                }
+                else {
+                    'Move files older than {0} {1}{2}' -f 
+                    $task.OlderThanQuantity,
+                    $(
+                        $task.OlderThanUnit.ToLower()
+                    ),
+                    $(
+                        if ($task.OlderThanQuantity -gt 1) { 's' }
                     )
                 }
-            ), $(
-                $description = if ($job.Type -eq 'File') {
-                    if ($job.OlderThanDays -eq 0) {
-                        'Remove file'
-                    }
-                    else {
-                        "Remove file when it's older than {0} days" -f 
-                        $job.OlderThanDays
-                    }
-                }
-                elseif ($job.Type -eq 'Folder') {
-                    if ($job.OlderThanDays -eq 0) {
-                        'Remove folder'
-                    }
-                    else {
-                        "Remove folder when it's older than {0} days" -f 
-                        $job.OlderThanDays
-                    }
-                }
-                elseif ($job.Type -eq 'Content') {
-                    if ($job.OlderThanDays -eq 0) {
-                        'Remove folder content'
-                    }
-                    else {
-                        'Remove folder content that is older than {0} days' -f 
-                        $job.OlderThanDays
-                    }
-                }
-                if ($job.RemoveEmptyFolders) {
-                    $description += ' and remove empty folders'
-                }
-                $description
-            ), $(
-                $counters = 'Removed: {0}' -f 
-                $(
-                    (
-                        $job.Items | Where-Object { $_.Action -eq 'Removed' } | 
+            ), 
+            $(
+                (
+                    $task.JobResults | 
+                    Where-Object { $_.Action -like 'File moved*' } | 
+                    Measure-Object
+                ).Count
+            ),
+            $(
+                if ($moveFilesErrorCount = (
+                        $task.JobResults | 
+                        Where-Object { $_.Error } | 
                         Measure-Object
-                    ).Count
-                )
-                if (
-                    $errorCount = (
-                        $job.Items | Where-Object { $_.Error } | Measure-Object
-                    ).Count
-                ) {
-                    $counters += ', <b style="color:red;">errors: {0}</b>' -f $errorCount
+                    ).Count) {
+                        ', <b style="color:red;">errors: {0}</b>' -f $moveFilesErrorCount
                 }
-                $counters
-            ), $(
-                if ($job.Error) {
-                    '<br><b style="color:red;">{0}</b>' -f $job.Error
+            ),
+            $(
+                if ($task.JobErrors) {
+                    $task.JobErrors | ForEach-Object {
+                        '<br><b style="color:red;">{0}</b>' -f $_
+                    }
                 }
             )
         }
@@ -552,7 +544,7 @@ End {
             To        = $MailTo
             Bcc       = $ScriptAdmin
             Message   = "
-                $errorsHtmlList
+                $systemErrorsHtmlList
                 <p>Summary:</p>
                 $jobResultsHtmlList"
             LogFolder = $LogParams.LogFolder

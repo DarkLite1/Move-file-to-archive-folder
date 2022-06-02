@@ -690,6 +690,7 @@ Describe 'on a successful run' {
             $_.CreationTime = $testFileCreationDate
         }
 
+        $Error.Clear()
         . $testScript @testParams
     }
     Context 'export an Excel file' {
@@ -730,7 +731,7 @@ Describe 'on a successful run' {
                 $actualRow.Action | Should -Be $testRow.Action
             }
         }
-    } -Tag test
+    }
     It 'send a summary mail to the user' {
         Should -Invoke Send-MailHC -Exactly 1 -Scope Context -ParameterFilter {
             ($To -eq 'bob@contoso.com') -and
@@ -738,7 +739,7 @@ Describe 'on a successful run' {
             ($Priority -eq 'Normal') -and
             ($Subject -eq '1 file moved') -and
             ($Attachments -like '*log.xlsx') -and
-            ($Message -like $testMail.Message)
+            ($Message -like "*Move files older than 3 days*")
         }
-    }
+    } -Tag test
 }
