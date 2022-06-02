@@ -75,109 +75,127 @@ Begin {
         Begin {
             $Today = Get-Date
     
+            #region Create filter
             Switch ($OlderThan) {
                 'Day' {
-                    Filter Select-Stuff {
-                        Write-Verbose "Found file '$_' with CreationTime '$($_.CreationTime.ToString('dd/MM/yyyy'))'"
-                        if ($_.CreationTime.Date.ToString('yyyyMMdd') -le $(($Today.AddDays( - $Quantity)).Date.ToString('yyyyMMdd'))) {
+                    Filter Select-FileHC {
+                        if (
+                            $_.CreationTime.Date.ToString('yyyyMMdd') -le $(($Today.AddDays( - $Quantity)).Date.ToString('yyyyMMdd'))
+                        ) {
                             Write-Output $_
                         }
                     }
                 }
                 'Month' {
-                    Filter Select-Stuff {
-                        Write-Verbose "Found file '$_' with CreationTime '$($_.CreationTime.ToString('dd/MM/yyyy'))'"
-                        if ($_.CreationTime.Date.ToString('yyyyMM') -le $(($Today.AddMonths( - $Quantity)).Date.ToString('yyyyMM'))) {
+                    Filter Select-FileHC {
+                        if (
+                            $_.CreationTime.Date.ToString('yyyyMM') -le $(($Today.AddMonths( - $Quantity)).Date.ToString('yyyyMM'))
+                        ) {
                             Write-Output $_
                         }
                     }
                 }
                 'Year' {
-                    Filter Select-Stuff {
-                        Write-Verbose "Found file '$_' with CreationTime '$($_.CreationTime.ToString('dd/MM/yyyy'))'"
-                        if ($_.CreationTime.Date.ToString('yyyy') -le $(($Today.AddYears( - $Quantity)).Date.ToString('yyyy'))) {
+                    Filter Select-FileHC {
+                        if (
+                            $_.CreationTime.Date.ToString('yyyy') -le $(($Today.AddYears( - $Quantity)).Date.ToString('yyyy'))
+                        ) {
                             Write-Output $_
                         }
                     }
                 }
                 Default {
-                    Filter Select-Stuff {
-                        Write-Verbose "Found file '$_' with CreationTime '$($_.CreationTime.ToString('dd/MM/yyyy'))'"
-                        Write-Output $_
-                    }
+                    throw "OlderThanUnit '$_' not supported"
                 }
             }
-    
-            [PSCustomObject]@{
-                ComputerName = $Env:COMPUTERNAME
-                Source       = $Source
-                Destination  = $Destination
-                Structure    = $Structure
-                OlderThan    = $OlderThan
-                Quantity     = $Quantity
-                Date         = $($Today.ToString('dd/MM/yyyy hh:mm:ss'))
-            }
 
+            if ($Quantity -eq 0) {
+                Filter Select-FileHC {
+                    Write-Output $_
+                }
+            }
+            #endregion
         }
     
         Process {
-            $File = $null
+            Get-ChildItem $Source -File | Select-FileHC | ForEach-Object {
+                $file = $_
+
+                $result = [PSCustomObject]@{
+                    ComputerName               = $Env:COMPUTERNAME
+                    SourceFileCreationTime     = $file.CreationTime
+                    FileName                   = $file.Name
+                    SourceFilePath             = $file.FullName
+                    DestinationFolderPath      = $Destination
+                    DestinationFolderStructure = $Structure
+                    OlderThanQuantity          = $Quantity
+                    OlderThanUnit              = $OlderThan
+                    Action                     = $null
+                    Error                      = $null
+                }
     
-            Get-ChildItem $Source -File | Select-Stuff | ForEach-Object {
-                $File = $_
-    
-                $ChildPath = Switch ($Structure) {
+                $childPath = Switch ($Structure) {
                     'Year' { 
-                        [String]$File.CreationTime.Year 
+                        [String]$file.CreationTime.Year 
                         break
                     }
                     'Year\Month' { 
-                        [String]$File.CreationTime.Year + '\' + $File.CreationTime.ToString('MM') 
+                        [String]$file.CreationTime.Year + '\' + $file.CreationTime.ToString('MM') 
                         break
                     }
                     'Year-Month' { 
-                        [String]$File.CreationTime.Year + '-' + $File.CreationTime.ToString('MM') 
+                        [String]$file.CreationTime.Year + '-' + $file.CreationTime.ToString('MM') 
                         break
                     }
                     'YYYYMM' { 
-                        [String]$File.CreationTime.Year + $File.CreationTime.ToString('MM') 
+                        [String]$file.CreationTime.Year + $file.CreationTime.ToString('MM') 
                         break
                     }
                     Default {
-                        throw ""
+                        throw "DestinationFolderStructure '$_' not supported"
                     }
                 }
-                $Target = Join-Path -Path $Destination -ChildPath $ChildPath
+
+                $joinParams = @{
+                    Path      = $Destination
+                    ChildPath = $childPath
+                }
+                $result.DestinationFolderPath = Join-Path @joinParams
     
                 Try {
-                    $null = New-Item $Target -Type Directory -EA Ignore
-                    Move-Item -Path $File.FullName -Destination $Target -EA Stop
-                    Write-Output "- '$File' > '$ChildPath'"
+                    $newParams = @{
+                        Path        = $result.DestinationFolderPath
+                        Type        = 'Directory'
+                        ErrorAction = 'Ignore'
+                    }
+                    $null = New-Item @newParams
+
+                    $moveParams = @{
+                        Path        = $file.FullName
+                        Destination = $result.DestinationFolderPath
+                        ErrorAction = 'Stop'
+                    }
+                    Move-Item @moveParams
+
+                    $result.Action = 'File moved'
                 }
                 Catch {
                     Switch ($_) {
-                        { $_ -match 'cannot access the file because it is being used by another process' } {
-                            Write-Output "- '$File' WARNING $_"
-                            $Global:Error.RemoveAt(0)
-                            break
-                        }
                         { $_ -match 'file already exists' } {
-                            Move-Item -Path $File.FullName -Destination $Target -Force
-                            Write-Output "- '$File' WARNING File already existed on the destination but has now been overwritten"
-                            $Global:Error.RemoveAt(0)
+                            Move-Item @moveParams -Force
+                            $result.Action = 'File moved and overwritten'
+                            $global:error.RemoveAt(0)
                             break
                         }
                         default {
-                            Write-Error "Error moving file '$($File.FullName)': $_"
-                            $Global:Error.RemoveAt(1)
-                            Write-Output "- '$File' ERROR $_"
+                            $result.Error = $_
+                            $global:error.RemoveAt(0)
                         }
                     }
                 }
-            }
-    
-            if (-not $File) {
-                Write-Output '- INFO No files found that match the filter, nothing moved'
+                Finally {
+                    $result
+                }
             }
         }
     }
@@ -189,13 +207,13 @@ Begin {
 
         #region Logging
         try {
-            $LogParams = @{
+            $logParams = @{
                 LogFolder    = New-Item -Path $LogFolder -ItemType 'Directory' -Force -ErrorAction 'Stop'
                 Name         = $ScriptName
                 Date         = 'ScriptStartTime'
                 NoFormatting = $true
             }
-            $LogFile = New-LogFileNameHC @LogParams
+            $logFile = New-LogFileNameHC @LogParams
         }
         Catch {
             throw "Failed creating the log folder '$LogFolder': $_"
@@ -296,9 +314,7 @@ Begin {
 
 Process {
     Try {
-        #region Remove files/folders on remote machines
-        $jobs = @()
-
+        #region Start jobs to move files to archive folder
         foreach ($task in $Tasks) {
             $invokeParams = @{
                 ScriptBlock  = $scriptBlock
@@ -314,8 +330,17 @@ Process {
             $invokeParams.ArgumentList[2], $invokeParams.ArgumentList[3], 
             $invokeParams.ArgumentList[4]
             Write-Verbose $M; Write-EventLog @EventVerboseParams -Message $M
+            
+            $addParams = @{
+                NotePropertyMembers = @{
+                    Job        = $null
+                    JobResults = @()
+                    JobErrors  = @()
+                }
+            }
+            $task | Add-Member @addParams
 
-            $jobs += if ($task.ComputerName) {
+            $task.Job = if ($task.ComputerName) {
                 $invokeParams.ComputerName = $task.ComputerName
                 $invokeParams.AsJob = $true
                 Invoke-Command @invokeParams
@@ -326,39 +351,52 @@ Process {
             
             # & $scriptBlock -Type $task.Remove -Path $task.Path -OlderThanDays $task.OlderThanDays -RemoveEmptyFolders $task.RemoveEmptyFolders
 
-            Wait-MaxRunningJobsHC -Name $jobs -MaxThreads $MaxConcurrentJobs
-        }
-
-        $M = "Wait for all $($jobs.count) jobs to finish"
-        Write-Verbose $M; Write-EventLog @EventOutParams -Message $M
-
-        # $jobResults = if ($jobs) { $jobs | Wait-Job -Force | Receive-Job }
-        $jobResults = if ($jobs) { 
-            Receive-Job -Job $jobs -Wait -AutoRemoveJob -Force 
+            $waitParams = @{
+                Name       = $Tasks.Job | Where-Object { $_ }
+                MaxThreads = $MaxConcurrentJobs
+            }
+            Wait-MaxRunningJobsHC @waitParams
         }
         #endregion
 
-        #region Export results to Excel log file
-        $exportToExcel = foreach (
-            $job in 
-            $jobResults | Where-Object { $_.Items }
-        ) {
-            $job.Items | Select-Object -Property @{
-                Name       = 'ComputerName'; 
-                Expression = { $job.ComputerName } 
-            },
-            'Type', @{
-                Name       = 'Path'; 
-                Expression = { $_.FullName } 
-            }, 'CreationTime', 'Action', 'Error'
-        }
+        #region Wait for jobs to finish
+        $M = "Wait for all $($Tasks.count) jobs to finish"
+        Write-Verbose $M; Write-EventLog @EventOutParams -Message $M
 
-        if ($exportToExcel) {
+        $Tasks.Job | Wait-Job
+        #endregion
+
+        #region Get job results and job errors
+        foreach ($task in $Tasks) {
+            $jobErrors = @()
+            $receiveParams = @{
+                ErrorVariable = 'jobErrors'
+                ErrorAction   = 'SilentlyContinue'
+            }
+            $task.JobResults += $task.Job | Receive-Job @receiveParams
+
+            foreach ($e in $jobErrors) {
+                $task.JobErrors += $e.ToString()
+                $Error.Remove($e)
+
+                $M = "Task error on '{0}' with SourceFolderPath '{1}' DestinationFolderPath '{2}' DestinationFolderStructure '{3}' OlderThanUnit '{4}' OlderThanQuantity '{5}': {6}" -f 
+                $task.Job.Location, $task.SourceFolderPath, 
+                $task.DestinationFolderPath, $task.DestinationFolderStructure, 
+                $task.OlderThanUnit, $task.OlderThanQuantity, $e.ToString()
+                Write-Verbose $M; Write-EventLog @EventErrorParams -Message $M
+            }
+            
+            Write-Verbose "task: $($task.Name) error: $($task.JobErrors)"
+        }
+        #endregion
+
+        #region Export job results to Excel file
+        if ($exportToExcel = $Tasks.JobResults | Where-Object { $_ }) {
             $M = "Export $($exportToExcel.Count) rows to Excel"
             Write-Verbose $M; Write-EventLog @EventOutParams -Message $M
             
             $excelParams = @{
-                Path               = $LogFile + '- Log.xlsx'
+                Path               = $logFile + '- Log.xlsx'
                 WorksheetName      = 'Overview'
                 TableName          = 'Overview'
                 NoNumberConversion = '*'
