@@ -128,7 +128,7 @@ Begin {
                     SourceFilePath         = $file.FullName
                     DestinationFolderPath  = $Destination
                     OlderThan              = "$Quantity $OlderThan{0}" -f $(
-                        if ($Quantity -ge 1) {
+                        if ($Quantity -gt 1) {
                             's'
                         }
                     )
@@ -392,8 +392,8 @@ Process {
         #endregion
 
         #region Export job results to Excel file
-        if ($exportToExcel = $Tasks.JobResults | Where-Object { $_ }) {
-            $M = "Export $($exportToExcel.Count) rows to Excel"
+        if ($jobResults = $Tasks.JobResults | Where-Object { $_ }) {
+            $M = "Export $($jobResults.Count) rows to Excel"
             Write-Verbose $M; Write-EventLog @EventOutParams -Message $M
             
             $excelParams = @{
@@ -404,7 +404,7 @@ Process {
                 AutoSize           = $true
                 FreezeTopRow       = $true
             }
-            $exportToExcel | Select-Object -Property * -ExcludeProperty 'PSComputerName', 'RunspaceId' | Export-Excel @excelParams
+            $jobResults | Select-Object -Property * -ExcludeProperty 'PSComputerName', 'RunSpaceId' | Export-Excel @excelParams
 
             $mailParams.Attachments = $excelParams.Path
         }
@@ -419,46 +419,163 @@ Process {
 }
 
 End {
-    Try {
-        <#  $HTMLTargets = $HTMLList | ConvertTo-HtmlListHC -Spacing Wide -Header 'The parameters were:'`
-            -FootNote "Files are moved from the source to the destination based on their creation date compared to the 'Older than' parameter."
-        $HTMLErrors = $Error | ConvertTo-HtmlListHC -Spacing Wide -Header 'Errors detected:'`
-            -FootNote "The most common error is that the destination already contains the same file name as the source file, 
-            and we don't overwrite files. All other files are correctly moved except for these.<br>Other options for errors are 
-            when the source or destination folder is unavailable. This can be caused due to the server being offline, 
-            DFS issues or other network related problems."
+    try {
+        #region Send mail to user
 
-        if ($Error) {
-            $OutParams = @{
-                Name    = "$ScriptName - FAILURE"
-                Message = $HTMLTargets, $HTMLErrors
-            }
-            $MailParams = @{
-                Message  = $HTMLTargets, $HTMLErrors
-                Priority = 'High'
-                Subject  = "FAILURE"
-            }
+        #region Count results, errors, ...
+        $counter = @{
+            movedFiles      = (
+                $jobResults | Where-Object { $_.Action -like 'File moved*' } | 
+                Measure-Object
+            ).Count
+            moveFilesErrors = (
+                $jobResults | Where-Object { $_.Error } | Measure-Object
+            ).Count
+            jobErrors       = (
+                $Tasks.jobErrors | Where-Object { $_ } | Measure-Object
+            ).Count
+            systemErrors    = (
+                $Error.Exception.Message | Where-Object { $_ } |
+                Measure-Object
+            ).Count
         }
-        else {
-            $OutParams = @{
-                Name    = "$ScriptName - Success"
-                Message = $HTMLTargets, 'No errors detected.'
-            }
-            $MailParams = @{
-                Message  = $HTMLTargets, 'No errors found'
-                Priority = 'Normal'
-                Subject  = "Success"
-            }
+        #endregion
+
+        #region Mail subject and priority
+        $mailParams.Subject = '{0} file{1} moved' -f $counter.movedFiles, $(
+            if ($counter.movedFiles -gt 1) { 's' }
+        )
+
+        if (
+            $totalErrorCount = $counter.moveFilesErrors + $counter.jobErrors + 
+            $counter.systemErrors
+        ) {
+            $mailParams.Priority = 'High'
+            $mailParams.Subject += ", $totalErrorCount error{0}" -f $(
+                if ($totalErrorCount -gt 1) { 's' }
+            )
+        }
+        #endregion
+
+        #region Create html lists
+        $errorsHtmlList = if ($unknownErrorCount) {
+            "<p>During removal <b>$unknownErrorCount non terminating {0} detected:{1}</p>" -f $(
+                if ($unknownErrorCount -eq 1) {
+                    'error</b> was'
+                }
+                else {
+                    'errors</b> were'
+                }
+            ),
+            $($Error.Exception.Message | Where-Object { $_ } | ConvertTo-HtmlListHC)
         }
 
-        $null = Get-ScriptRuntimeHC -Stop
-        Out-HtmlFileHC @OutParams -Path $LogFolder -NamePrefix ScriptStartTime
-        Send-MailHC @MailParams -To $MailTo -LogFolder $LogFolder -Header $ScriptName #>
+        $jobResultsHtmlListItems = foreach (
+            $job in 
+            $jobResults | Sort-Object -Property 'Name', 'Path', 'ComputerName'
+        ) {
+            "{0}<br>{1}<br>{2}{3}" -f 
+            $(
+                if ($job.Path -match '^\\\\') {
+                    '<a href="{0}">{1}</a>' -f $job.Path, $(
+                        if ($job.Name) { $job.Name }
+                        else { $job.Path }
+                    )
+                }
+                else {
+                    $uncPath = $job.Path -Replace '^.{2}', (
+                        '\\{0}\{1}$' -f $job.ComputerName, $job.Path[0]
+                    )
+                    '<a href="{0}">{1}</a>' -f $uncPath, $(
+                        if ($job.Name) { $job.Name }
+                        else { $uncPath }
+                    )
+                }
+            ), $(
+                $description = if ($job.Type -eq 'File') {
+                    if ($job.OlderThanDays -eq 0) {
+                        'Remove file'
+                    }
+                    else {
+                        "Remove file when it's older than {0} days" -f 
+                        $job.OlderThanDays
+                    }
+                }
+                elseif ($job.Type -eq 'Folder') {
+                    if ($job.OlderThanDays -eq 0) {
+                        'Remove folder'
+                    }
+                    else {
+                        "Remove folder when it's older than {0} days" -f 
+                        $job.OlderThanDays
+                    }
+                }
+                elseif ($job.Type -eq 'Content') {
+                    if ($job.OlderThanDays -eq 0) {
+                        'Remove folder content'
+                    }
+                    else {
+                        'Remove folder content that is older than {0} days' -f 
+                        $job.OlderThanDays
+                    }
+                }
+                if ($job.RemoveEmptyFolders) {
+                    $description += ' and remove empty folders'
+                }
+                $description
+            ), $(
+                $counters = 'Removed: {0}' -f 
+                $(
+                    (
+                        $job.Items | Where-Object { $_.Action -eq 'Removed' } | 
+                        Measure-Object
+                    ).Count
+                )
+                if (
+                    $errorCount = (
+                        $job.Items | Where-Object { $_.Error } | Measure-Object
+                    ).Count
+                ) {
+                    $counters += ', <b style="color:red;">errors: {0}</b>' -f $errorCount
+                }
+                $counters
+            ), $(
+                if ($job.Error) {
+                    '<br><b style="color:red;">{0}</b>' -f $job.Error
+                }
+            )
+        }
+   
+        $jobResultsHtmlList = $jobResultsHtmlListItems | 
+        ConvertTo-HtmlListHC -Spacing Wide
+        #endregion
+        
+        $mailParams += @{
+            To        = $MailTo
+            Bcc       = $ScriptAdmin
+            Message   = "
+                $errorsHtmlList
+                <p>Summary:</p>
+                $jobResultsHtmlList"
+            LogFolder = $LogParams.LogFolder
+            Header    = $ScriptName
+            Save      = $LogFile + ' - Mail.html'
+        }
+
+        if ($mailParams.Attachments) {
+            $mailParams.Message += 
+            "<p><i>* Check the attachment for details</i></p>"
+        }
+   
+        Get-ScriptRuntimeHC -Stop
+        Send-MailHC @mailParams
+        #endregion
     }
-    Catch {
+    catch {
         Write-Warning $_
         Send-MailHC -To $ScriptAdmin -Subject 'FAILURE' -Priority 'High' -Message $_ -Header $ScriptName
-        Write-EventLog @EventErrorParams -Message "FAILURE:`n`n- $_"; Exit 1
+        Write-EventLog @EventErrorParams -Message "FAILURE:`n`n- $_"
+        Exit 1
     }
     Finally {
         Write-EventLog @EventEndParams

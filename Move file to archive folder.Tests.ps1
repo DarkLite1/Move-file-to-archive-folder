@@ -735,8 +735,8 @@ Describe 'on a successful run' {
         Should -Invoke Send-MailHC -Exactly 1 -Scope Context -ParameterFilter {
             ($To -eq 'bob@contoso.com') -and
             ($Bcc -eq $ScriptAdmin) -and
-            ($Priority -eq $testMail.Priority) -and
-            ($Subject -eq $testMail.Subject) -and
+            ($Priority -eq 'Normal') -and
+            ($Subject -eq '1 file moved') -and
             ($Attachments -like '*log.xlsx') -and
             ($Message -like $testMail.Message)
         }
