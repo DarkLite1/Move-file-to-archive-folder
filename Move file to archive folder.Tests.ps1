@@ -664,5 +664,81 @@ Describe 'a file in the source folder' {
                 $testFileCreationDate.ToString('yyyyMM')
             ) | Should -HaveCount 1
         }
-    } -Tag test
+    }
 } 
+Describe 'on a successful run' {
+    BeforeAll {
+        @{
+            MailTo = @('bob@contoso.com')
+            Tasks  = @(
+                @{
+                    ComputerName               = $env:COMPUTERNAME
+                    SourceFolderPath           = $testFolder.Source
+                    DestinationFolderPath      = $testFolder.Destination
+                    DestinationFolderStructure = 'Year'
+                    OlderThanUnit              = 'Day'
+                    OlderThanQuantity          = 3
+                }
+            )
+        } | ConvertTo-Json | Out-File @testOutParams
+
+        $testFileCreationDate = (Get-Date).AddDays(-4)
+
+        $testFile = (New-Item -Path "$($testFolder.source)\file.txt" -ItemType File).FullName
+
+        Get-Item -Path $testFile | ForEach-Object {
+            $_.CreationTime = $testFileCreationDate
+        }
+
+        . $testScript @testParams
+    }
+    Context 'export an Excel file' {
+        BeforeAll {
+            $testExportedExcelRows = @(
+                @{
+                    Action                 = 'File moved'
+                    ComputerName           = $env:COMPUTERNAME
+                    SourceFileCreationTime = $testFileCreationDate
+                    SourceFilePath         = $testFile
+                    DestinationFolderPath  = "$($testFolder.Destination)\{0}" -f $testFileCreationDate.ToString('yyyy')
+                    OlderThan              = '3 Days'
+                    Error                  = $null
+                }
+            )
+
+            $testExcelLogFile = Get-ChildItem $testParams.LogFolder -File -Recurse -Filter '*.xlsx'
+
+            $actual = Import-Excel -Path $testExcelLogFile.FullName -WorksheetName 'Overview'
+        }
+        It 'to the log folder' {
+            $testExcelLogFile | Should -Not -BeNullOrEmpty
+        }
+        It 'with the correct total rows' {
+            $actual | Should -HaveCount $testExportedExcelRows.Count
+        }
+        It 'with the correct data in the rows' {
+            foreach ($testRow in $testExportedExcelRows) {
+                $actualRow = $actual | Where-Object {
+                    $_.SourceFilePath -eq $testRow.SourceFilePath
+                }
+                $actualRow.ComputerName | Should -Be $testRow.ComputerName
+                $actualRow.SourceFileCreationTime.ToString('yyyyMMdd HHmmss') | 
+                Should -Be $testRow.SourceFileCreationTime.ToString('yyyyMMdd HHmmss')
+                $actualRow.DestinationFolderPath | Should -Be $testRow.DestinationFolderPath
+                $actualRow.OlderThan | Should -Be $testRow.OlderThan
+                $actualRow.Error | Should -Be $testRow.Error
+                $actualRow.Action | Should -Be $testRow.Action
+            }
+        }
+    } -Tag test
+    It 'send a summary mail to the user' {
+        Should -Invoke Send-MailHC -Exactly 1 -Scope Context -ParameterFilter {
+            ($To -eq 'bob@contoso.com') -and
+            ($Bcc -eq $ScriptAdmin) -and
+            ($Priority -eq $testMail.Priority) -and
+            ($Subject -eq $testMail.Subject) -and
+            ($Attachments -like '*log.xlsx') -and
+            ($Message -like $testMail.Message)
+        }
+    }
+}

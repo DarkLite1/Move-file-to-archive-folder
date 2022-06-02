@@ -122,16 +122,17 @@ Begin {
                 $file = $_
 
                 $result = [PSCustomObject]@{
-                    ComputerName               = $Env:COMPUTERNAME
-                    SourceFileCreationTime     = $file.CreationTime
-                    FileName                   = $file.Name
-                    SourceFilePath             = $file.FullName
-                    DestinationFolderPath      = $Destination
-                    DestinationFolderStructure = $Structure
-                    OlderThanQuantity          = $Quantity
-                    OlderThanUnit              = $OlderThan
-                    Action                     = $null
-                    Error                      = $null
+                    Action                 = $null
+                    ComputerName           = $env:COMPUTERNAME
+                    SourceFileCreationTime = $file.CreationTime
+                    SourceFilePath         = $file.FullName
+                    DestinationFolderPath  = $Destination
+                    OlderThan              = "$Quantity $OlderThan{0}" -f $(
+                        if ($Quantity -ge 1) {
+                            's'
+                        }
+                    )
+                    Error                  = $null
                 }
     
                 $childPath = Switch ($Structure) {
@@ -403,7 +404,7 @@ Process {
                 AutoSize           = $true
                 FreezeTopRow       = $true
             }
-            $exportToExcel | Export-Excel @excelParams
+            $exportToExcel | Select-Object -Property * -ExcludeProperty 'PSComputerName', 'RunspaceId' | Export-Excel @excelParams
 
             $mailParams.Attachments = $excelParams.Path
         }
@@ -419,7 +420,7 @@ Process {
 
 End {
     Try {
-       <#  $HTMLTargets = $HTMLList | ConvertTo-HtmlListHC -Spacing Wide -Header 'The parameters were:'`
+        <#  $HTMLTargets = $HTMLList | ConvertTo-HtmlListHC -Spacing Wide -Header 'The parameters were:'`
             -FootNote "Files are moved from the source to the destination based on their creation date compared to the 'Older than' parameter."
         $HTMLErrors = $Error | ConvertTo-HtmlListHC -Spacing Wide -Header 'Errors detected:'`
             -FootNote "The most common error is that the destination already contains the same file name as the source file, 
