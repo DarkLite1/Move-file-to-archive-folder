@@ -733,7 +733,7 @@ Describe 'on a successful run' {
         }
     }
     It 'send a summary mail to the user' {
-        Should -Invoke Send-MailHC -Exactly 1 -Scope Context -ParameterFilter {
+        Should -Invoke Send-MailHC -Exactly 1 -Scope Describe -ParameterFilter {
             ($To -eq 'bob@contoso.com') -and
             ($Bcc -eq $ScriptAdmin) -and
             ($Priority -eq 'Normal') -and
