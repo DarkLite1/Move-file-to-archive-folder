@@ -739,7 +739,14 @@ Describe 'on a successful run' {
             ($Priority -eq 'Normal') -and
             ($Subject -eq '1 file moved') -and
             ($Attachments -like '*log.xlsx') -and
-            ($Message -like "*Move files older than 3 days*")
+            ($Message -like (
+                "*From: <a href=`"{0}`">{0}</a><br>To: <a href=`"{1}`">{1}</a><br>Move files older than 3 days<br>Moved: 1*" -f $(
+                    "\\$env:COMPUTERNAME\C$\$($testFolder.Source.Substring(3))"
+                ),
+                $(
+                    "\\$env:COMPUTERNAME\C$\$($testFolder.Destination.Substring(3))"
+                )
+            ))
         }
     } -Tag test
 }
