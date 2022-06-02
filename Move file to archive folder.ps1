@@ -350,8 +350,6 @@ Process {
                 Start-Job @invokeParams
             }
             
-            # & $scriptBlock -Type $task.Remove -Path $task.Path -OlderThanDays $task.OlderThanDays -RemoveEmptyFolders $task.RemoveEmptyFolders
-
             $waitParams = @{
                 Name       = $Tasks.Job | Where-Object { $_ }
                 MaxThreads = $MaxConcurrentJobs
