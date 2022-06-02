@@ -539,4 +539,130 @@ Describe 'a file in the source folder' {
             Get-ChildItem -Path $testFolder.Destination | Should -HaveCount 1
         }
     }
-} -Tag test
+    Context 'is moved to a folder with structure' {
+        BeforeEach {
+            @($testFolder.Source, $testFolder.Destination) | ForEach-Object {
+                Remove-Item "$_\*" -Recurse -Force
+            }
+            $testFile = (New-Item -Path "$($testFolder.source)\file.txt" -ItemType File).FullName
+        }
+        It 'Year' {
+            @{
+                MailTo = @('bob@contoso.com')
+                Tasks  = @(
+                    @{
+                        ComputerName               = $env:COMPUTERNAME
+                        SourceFolderPath           = $testFolder.Source
+                        DestinationFolderPath      = $testFolder.Destination
+                        DestinationFolderStructure = 'Year'
+                        OlderThanUnit              = 'Day'
+                        OlderThanQuantity          = 3
+                    }
+                )
+            } | ConvertTo-Json | Out-File @testOutParams
+
+            $testFileCreationDate = (Get-Date).AddDays(-4)
+
+            Get-Item -Path $testFile | ForEach-Object {
+                $_.CreationTime = $testFileCreationDate
+            }
+
+            . $testScript @testParams
+
+            Get-ChildItem -Path $testFolder.Source | Should -HaveCount 0
+            Get-ChildItem -Path (
+                $testFolder.Destination + '\' +
+                $testFileCreationDate.ToString('yyyy')
+            ) | Should -HaveCount 1
+        }
+        It 'Year-Month' {
+            @{
+                MailTo = @('bob@contoso.com')
+                Tasks  = @(
+                    @{
+                        ComputerName               = $env:COMPUTERNAME
+                        SourceFolderPath           = $testFolder.Source
+                        DestinationFolderPath      = $testFolder.Destination
+                        DestinationFolderStructure = 'Year-Month'
+                        OlderThanUnit              = 'Day'
+                        OlderThanQuantity          = 3
+                    }
+                )
+            } | ConvertTo-Json | Out-File @testOutParams
+
+            $testFileCreationDate = (Get-Date).AddDays(-4)
+
+            Get-Item -Path $testFile | ForEach-Object {
+                $_.CreationTime = $testFileCreationDate
+            }
+
+            . $testScript @testParams
+
+            Get-ChildItem -Path $testFolder.Source | Should -HaveCount 0
+            Get-ChildItem -Path (
+                $testFolder.Destination + '\' +
+                $testFileCreationDate.ToString('yyyy') + '-' +
+                $testFileCreationDate.ToString('MM')
+            ) | Should -HaveCount 1
+        }
+        It 'Year\Month' {
+            @{
+                MailTo = @('bob@contoso.com')
+                Tasks  = @(
+                    @{
+                        ComputerName               = $env:COMPUTERNAME
+                        SourceFolderPath           = $testFolder.Source
+                        DestinationFolderPath      = $testFolder.Destination
+                        DestinationFolderStructure = 'Year\Month'
+                        OlderThanUnit              = 'Day'
+                        OlderThanQuantity          = 3
+                    }
+                )
+            } | ConvertTo-Json | Out-File @testOutParams
+
+            $testFileCreationDate = (Get-Date).AddDays(-4)
+
+            Get-Item -Path $testFile | ForEach-Object {
+                $_.CreationTime = $testFileCreationDate
+            }
+
+            . $testScript @testParams
+
+            Get-ChildItem -Path $testFolder.Source | Should -HaveCount 0
+            Get-ChildItem -Path (
+                $testFolder.Destination + '\' +
+                $testFileCreationDate.ToString('yyyy') + '\' +
+                $testFileCreationDate.ToString('MM')
+            ) | Should -HaveCount 1
+        }
+        It 'YYYYMM' {
+            @{
+                MailTo = @('bob@contoso.com')
+                Tasks  = @(
+                    @{
+                        ComputerName               = $env:COMPUTERNAME
+                        SourceFolderPath           = $testFolder.Source
+                        DestinationFolderPath      = $testFolder.Destination
+                        DestinationFolderStructure = 'YYYYMM'
+                        OlderThanUnit              = 'Day'
+                        OlderThanQuantity          = 3
+                    }
+                )
+            } | ConvertTo-Json | Out-File @testOutParams
+
+            $testFileCreationDate = (Get-Date).AddDays(-4)
+
+            Get-Item -Path $testFile | ForEach-Object {
+                $_.CreationTime = $testFileCreationDate
+            }
+
+            . $testScript @testParams
+
+            Get-ChildItem -Path $testFolder.Source | Should -HaveCount 0
+            Get-ChildItem -Path (
+                $testFolder.Destination + '\' +
+                $testFileCreationDate.ToString('yyyyMM')
+            ) | Should -HaveCount 1
+        }
+    } -Tag test
+} 
