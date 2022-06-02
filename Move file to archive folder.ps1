@@ -419,7 +419,7 @@ Process {
 
 End {
     Try {
-        $HTMLTargets = $HTMLList | ConvertTo-HtmlListHC -Spacing Wide -Header 'The parameters were:'`
+       <#  $HTMLTargets = $HTMLList | ConvertTo-HtmlListHC -Spacing Wide -Header 'The parameters were:'`
             -FootNote "Files are moved from the source to the destination based on their creation date compared to the 'Older than' parameter."
         $HTMLErrors = $Error | ConvertTo-HtmlListHC -Spacing Wide -Header 'Errors detected:'`
             -FootNote "The most common error is that the destination already contains the same file name as the source file, 
@@ -452,7 +452,7 @@ End {
 
         $null = Get-ScriptRuntimeHC -Stop
         Out-HtmlFileHC @OutParams -Path $LogFolder -NamePrefix ScriptStartTime
-        Send-MailHC @MailParams -To $MailTo -LogFolder $LogFolder -Header $ScriptName
+        Send-MailHC @MailParams -To $MailTo -LogFolder $LogFolder -Header $ScriptName #>
     }
     Catch {
         Write-Warning $_

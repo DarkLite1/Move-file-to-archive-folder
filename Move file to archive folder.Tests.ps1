@@ -13,7 +13,12 @@ BeforeAll {
         ImportFile = $testOutParams.FilePath
         LogFolder  = New-Item 'TestDrive:/log' -ItemType Directory
     }
-    
+
+    $testFolder = @{
+        Source      = (New-Item 'TestDrive:/Source' -ItemType Directory).FullName
+        Destination = (New-Item 'TestDrive:/Destination' -ItemType Directory).FullName
+    }
+
     Mock Send-MailHC
     Mock Write-EventLog
 }
@@ -90,10 +95,10 @@ Describe 'send an e-mail to the admin when' {
                     MailTo = @('bob@contoso.com')
                     Tasks  = @(
                         @{
-                            # SourceFolderPath           = "\\contoso\folderA"
-                            DestinationFolderPath      = "\\contoso\folderB"
-                            DestinationFolderStructure = "Year\Month"
-                            OlderThanUnit              = "Month"
+                            # SourceFolderPath           = '\\contoso\folderA'
+                            DestinationFolderPath      = '\\contoso\folderB'
+                            DestinationFolderStructure = 'Year\Month'
+                            OlderThanUnit              = 'Month'
                             OlderThanQuantity          = 1
                         }
                     )
@@ -113,10 +118,10 @@ Describe 'send an e-mail to the admin when' {
                     MailTo = @('bob@contoso.com')
                     Tasks  = @(
                         @{
-                            SourceFolderPath           = "\\contoso\folderA"
-                            # DestinationFolderPath      = "\\contoso\folderB"
-                            DestinationFolderStructure = "Year\Month"
-                            OlderThanUnit              = "Month"
+                            SourceFolderPath           = '\\contoso\folderA'
+                            # DestinationFolderPath      = '\\contoso\folderB'
+                            DestinationFolderStructure = 'Year\Month'
+                            OlderThanUnit              = 'Month'
                             OlderThanQuantity          = 1
                         }
                     )
@@ -138,10 +143,10 @@ Describe 'send an e-mail to the admin when' {
                         Tasks  = @(
                             @{
                                 ComputerName               = $env:COMPUTERNAME
-                                SourceFolderPath           = "\\contoso\folderA"
-                                DestinationFolderPath      = "C:\folderB"
-                                DestinationFolderStructure = "Year\Month"
-                                OlderThanUnit              = "Month"
+                                SourceFolderPath           = '\\contoso\folderA'
+                                DestinationFolderPath      = 'C:\folderB'
+                                DestinationFolderStructure = 'Year\Month'
+                                OlderThanUnit              = 'Month'
                                 OlderThanQuantity          = 1
                             }
                         )
@@ -162,10 +167,10 @@ Describe 'send an e-mail to the admin when' {
                         Tasks  = @(
                             @{
                                 ComputerName               = $env:COMPUTERNAME
-                                SourceFolderPath           = "C:\folderA"
-                                DestinationFolderPath      = "\\contoso\folderB"
-                                DestinationFolderStructure = "Year\Month"
-                                OlderThanUnit              = "Month"
+                                SourceFolderPath           = 'C:\folderA'
+                                DestinationFolderPath      = '\\contoso\folderB'
+                                DestinationFolderStructure = 'Year\Month'
+                                OlderThanUnit              = 'Month'
                                 OlderThanQuantity          = 1
                             }
                         )
@@ -186,10 +191,10 @@ Describe 'send an e-mail to the admin when' {
                         Tasks  = @(
                             @{
                                 # ComputerName               = $env:COMPUTERNAME
-                                SourceFolderPath           = "\\contoso\folderA"
-                                DestinationFolderPath      = "C:\folderB"
-                                DestinationFolderStructure = "Year\Month"
-                                OlderThanUnit              = "Month"
+                                SourceFolderPath           = '\\contoso\folderA'
+                                DestinationFolderPath      = 'C:\folderB'
+                                DestinationFolderStructure = 'Year\Month'
+                                OlderThanUnit              = 'Month'
                                 OlderThanQuantity          = 1
                             }
                         )
@@ -210,10 +215,10 @@ Describe 'send an e-mail to the admin when' {
                         Tasks  = @(
                             @{
                                 # ComputerName               = $env:COMPUTERNAME
-                                SourceFolderPath           = "C:\folderA"
-                                DestinationFolderPath      = "\\contoso\folderB"
-                                DestinationFolderStructure = "Year\Month"
-                                OlderThanUnit              = "Month"
+                                SourceFolderPath           = 'C:\folderA'
+                                DestinationFolderPath      = '\\contoso\folderB'
+                                DestinationFolderStructure = 'Year\Month'
+                                OlderThanUnit              = 'Month'
                                 OlderThanQuantity          = 1
                             }
                         )
@@ -235,10 +240,10 @@ Describe 'send an e-mail to the admin when' {
                         MailTo = @('bob@contoso.com')
                         Tasks  = @(
                             @{
-                                SourceFolderPath      = "\\contoso\folderA"
-                                DestinationFolderPath = "\\contoso\folderB"
+                                SourceFolderPath      = '\\contoso\folderA'
+                                DestinationFolderPath = '\\contoso\folderB'
                                 # DestinationFolderStructure = "Year\\Month"
-                                OlderThanUnit         = "Month"
+                                OlderThanUnit         = 'Month'
                                 OlderThanQuantity     = 1
                             }
                         )
@@ -258,10 +263,10 @@ Describe 'send an e-mail to the admin when' {
                         MailTo = @('bob@contoso.com')
                         Tasks  = @(
                             @{
-                                SourceFolderPath           = "\\contoso\folderA"
-                                DestinationFolderPath      = "\\contoso\folderB"
+                                SourceFolderPath           = '\\contoso\folderA'
+                                DestinationFolderPath      = '\\contoso\folderB'
                                 DestinationFolderStructure = "wrong"
-                                OlderThanUnit              = "Month"
+                                OlderThanUnit              = 'Month'
                                 OlderThanQuantity          = 1
                             }
                         )
@@ -283,10 +288,10 @@ Describe 'send an e-mail to the admin when' {
                         MailTo = @('bob@contoso.com')
                         Tasks  = @(
                             @{
-                                SourceFolderPath           = "\\contoso\folderA"
-                                DestinationFolderPath      = "\\contoso\folderB"
-                                DestinationFolderStructure = "Year\Month"
-                                # OlderThanUnit              = "Month"
+                                SourceFolderPath           = '\\contoso\folderA'
+                                DestinationFolderPath      = '\\contoso\folderB'
+                                DestinationFolderStructure = 'Year\Month'
+                                # OlderThanUnit              = 'Month'
                                 OlderThanQuantity          = 1
                             }
                         )
@@ -306,9 +311,9 @@ Describe 'send an e-mail to the admin when' {
                         MailTo = @('bob@contoso.com')
                         Tasks  = @(
                             @{
-                                SourceFolderPath           = "\\contoso\folderA"
-                                DestinationFolderPath      = "\\contoso\folderB"
-                                DestinationFolderStructure = "Year\Month"
+                                SourceFolderPath           = '\\contoso\folderA'
+                                DestinationFolderPath      = '\\contoso\folderB'
+                                DestinationFolderStructure = 'Year\Month'
                                 OlderThanUnit              = "notSupported"
                                 OlderThanQuantity          = 1
                             }
@@ -331,10 +336,10 @@ Describe 'send an e-mail to the admin when' {
                         MailTo = @('bob@contoso.com')
                         Tasks  = @(
                             @{
-                                SourceFolderPath           = "\\contoso\folderA"
-                                DestinationFolderPath      = "\\contoso\folderB"
-                                DestinationFolderStructure = "Year\Month"
-                                OlderThanUnit              = "Month"
+                                SourceFolderPath           = '\\contoso\folderA'
+                                DestinationFolderPath      = '\\contoso\folderB'
+                                DestinationFolderStructure = 'Year\Month'
+                                OlderThanUnit              = 'Month'
                                 # OlderThanQuantity          = 1
                             }
                         )
@@ -354,10 +359,10 @@ Describe 'send an e-mail to the admin when' {
                         MailTo = @('bob@contoso.com')
                         Tasks  = @(
                             @{
-                                SourceFolderPath           = "\\contoso\folderA"
-                                DestinationFolderPath      = "\\contoso\folderB"
-                                DestinationFolderStructure = "Year\Month"
-                                OlderThanUnit              = "Month"
+                                SourceFolderPath           = '\\contoso\folderA'
+                                DestinationFolderPath      = '\\contoso\folderB'
+                                DestinationFolderStructure = 'Year\Month'
+                                OlderThanUnit              = 'Month'
                                 OlderThanQuantity          = 'a'
                             }
                         )
@@ -376,833 +381,162 @@ Describe 'send an e-mail to the admin when' {
         }
     }
 }
-Describe "when 'Remove' is 'file'" {
-    Context  "and 'OlderThanQuantity' is '0'" {
+Describe 'a file in the source folder' {
+    Context 'is not moved when it is created more recently than' {
         BeforeAll {
-            $testFolder = 0..2 | ForEach-Object {
-            (New-Item "TestDrive:/folder$_" -ItemType Directory).FullName
-            }
-            $testFile = 0..2 | ForEach-Object {
-            (New-Item "TestDrive:/file$_.txt" -ItemType File).FullName
-            }
-
+            $testFile = (New-Item -Path "$($testFolder.source)\file.txt" -ItemType File).FullName
+        }
+        It 'Day' {
             @{
                 MailTo = @('bob@contoso.com')
                 Tasks  = @(
                     @{
-                        Name              = 'FTP log file'
-                        Remove            = 'file'
-                        Path              = $testFile[0]
-                        ComputerName      = $env:COMPUTERNAME
-                        OlderThanQuantity = 0
-                    }
-                    @{
-                        Remove            = 'file'
-                        Path              = 'c:\Not Existing File'
-                        ComputerName      = $env:COMPUTERNAME
-                        OlderThanQuantity = 0
+                        ComputerName               = $env:COMPUTERNAME
+                        SourceFolderPath           = $testFolder.Source
+                        DestinationFolderPath      = $testFolder.Destination
+                        DestinationFolderStructure = 'Year\Month'
+                        OlderThanUnit              = 'Day'
+                        OlderThanQuantity          = 3
                     }
                 )
             } | ConvertTo-Json | Out-File @testOutParams
 
-            $testExportedExcelRows = @(
-                @{
-                    ComputerName = $env:COMPUTERNAME
-                    Type         = 'File'
-                    Path         = $testFile[0]
-                    Error        = $null
-                    Action       = 'Removed'
-                }
-                @{
-                    ComputerName = $env:COMPUTERNAME
-                    Type         = 'File'
-                    Path         = 'c:\not existing file'
-                    Error        = 'Path not found'
-                    Action       = $null
-                }
-            )
-            $testRemoved = @{
-                files   = @($testFile[0])
-                folders = $null
-            }
-            $testNotRemoved = @{
-                files   = @($testFile[1], $testFile[2])
-                folders = @($testFolder[0], $testFolder[1], $testFolder[2])
-            }
-            $testMail = @{
-                Priority = 'High'
-                Subject  = '1 removed, 1 error'
-                Message  = "*<ul><li><a href=`"\\$env:COMPUTERNAME\c$\not existing file`">\\$env:COMPUTERNAME\c$\not existing file</a><br>Remove file<br>Removed: 0, <b style=`"color:red;`">errors: 1</b><br><br></li>*<li><a href=`"*$($testFile[0].Name)`">FTP log file</a><br>Remove file<br>Removed: 1</li></ul><p><i>* Check the attachment for details</i></p>*"
+            Get-Item -Path $testFile | ForEach-Object {
+                $_.CreationTime = (Get-Date).AddDays(-2)
             }
 
-            $Error.Clear()
             . $testScript @testParams
-        }
-        Context 'remove the requested' {
-            It 'files' {
-                $testRemoved.files | Where-Object { $_ } | ForEach-Object {
-                    $_ | Should -Not -Exist
-                }
-            }
-            It 'folders' {
-                $testRemoved.folders | Where-Object { $_ } | ForEach-Object {
-                    $_ | Should -Not -Exist
-                }
-            }
-        }
-        Context 'not remove other' {
-            It 'files' {
-                $testNotRemoved.files | Where-Object { $_ } | ForEach-Object {
-                    $_ | Should -Exist
-                }
-            }
-            It 'folders' {
-                $testNotRemoved.folders | Where-Object { $_ } | ForEach-Object {
-                    $_ | Should -Exist
-                }
-            }
-        }
-        Context 'export an Excel file' {
-            BeforeAll {
-                $testExcelLogFile = Get-ChildItem $testParams.LogFolder -File -Recurse -Filter '*.xlsx'
 
-                $actual = Import-Excel -Path $testExcelLogFile.FullName -WorksheetName 'Overview'
-            }
-            It 'to the log folder' {
-                $testExcelLogFile | Should -Not -BeNullOrEmpty
-            }
-            It 'with the correct total rows' {
-                $actual | Should -HaveCount $testExportedExcelRows.Count
-            }
-            It 'with the correct data in the rows' {
-                foreach ($testRow in $testExportedExcelRows) {
-                    $actualRow = $actual | Where-Object {
-                        $_.Path -eq $testRow.Path
-                    }
-                    $actualRow.ComputerName | Should -Be $testRow.ComputerName
-                    $actualRow.Type | Should -Be $testRow.Type
-                    $actualRow.Path | Should -Be $testRow.Path
-                    $actualRow.Error | Should -Be $testRow.Error
-                    $actualRow.Action | Should -Be $testRow.Action
-                }
-            }
+            Get-ChildItem -Path $testFolder.Source | Should -HaveCount 1
+            Get-ChildItem -Path $testFolder.Destination | Should -HaveCount 0
         }
-        It 'send a summary mail to the user' {
-            Should -Invoke Send-MailHC -Exactly 1 -Scope Context -ParameterFilter {
-            ($To -eq 'bob@contoso.com') -and
-            ($Bcc -eq $ScriptAdmin) -and
-            ($Priority -eq $testMail.Priority) -and
-            ($Subject -eq $testMail.Subject) -and
-            ($Attachments -like '*log.xlsx') -and
-            ($Message -like $testMail.Message)
+        It 'Month' {
+            @{
+                MailTo = @('bob@contoso.com')
+                Tasks  = @(
+                    @{
+                        ComputerName               = $env:COMPUTERNAME
+                        SourceFolderPath           = $testFolder.Source
+                        DestinationFolderPath      = $testFolder.Destination
+                        DestinationFolderStructure = 'Year\Month'
+                        OlderThanUnit              = 'Month'
+                        OlderThanQuantity          = 3
+                    }
+                )
+            } | ConvertTo-Json | Out-File @testOutParams
+
+            Get-Item -Path $testFile | ForEach-Object {
+                $_.CreationTime = (Get-Date).AddMonths(-2)
             }
+
+            . $testScript @testParams
+
+            Get-ChildItem -Path $testFolder.Source | Should -HaveCount 1
+            Get-ChildItem -Path $testFolder.Destination | Should -HaveCount 0
+        }
+        It 'Year' {
+            @{
+                MailTo = @('bob@contoso.com')
+                Tasks  = @(
+                    @{
+                        ComputerName               = $env:COMPUTERNAME
+                        SourceFolderPath           = $testFolder.Source
+                        DestinationFolderPath      = $testFolder.Destination
+                        DestinationFolderStructure = 'Year\Month'
+                        OlderThanUnit              = 'Year'
+                        OlderThanQuantity          = 3
+                    }
+                )
+            } | ConvertTo-Json | Out-File @testOutParams
+
+            Get-Item -Path $testFile | ForEach-Object {
+                $_.CreationTime = (Get-Date).AddYears(-2)
+            }
+
+            . $testScript @testParams
+
+            Get-ChildItem -Path $testFolder.Source | Should -HaveCount 1
+            Get-ChildItem -Path $testFolder.Destination | Should -HaveCount 0
         }
     }
-    Context  "and 'OlderThanQuantity' is not '0'" {
-        BeforeAll {
-            $testFolder = 0..2 | ForEach-Object {
-                (New-Item "TestDrive:/folder$_" -ItemType Directory).FullName
+    Context 'is moved when it is older than' {
+        BeforeEach {
+            @($testFolder.Source, $testFolder.Destination) | ForEach-Object {
+                Remove-Item "$_\*" -Recurse -Force
             }
-            $testFile = 0..2 | ForEach-Object {
-                (New-Item "TestDrive:/file$_.txt" -ItemType File).FullName
-            }
-
-            @($testFile[0], $testFolder[0]) | ForEach-Object {
-                $testItem = Get-Item -LiteralPath $_
-                $testItem.CreationTime = (Get-Date).AddDays(-5)
-            }
-
+            $testFile = (New-Item -Path "$($testFolder.source)\file.txt" -ItemType File).FullName
+        }
+        It 'Day' {
             @{
                 MailTo = @('bob@contoso.com')
                 Tasks  = @(
                     @{
-                        Remove            = 'file'
-                        Path              = $testFile[0]
-                        ComputerName      = $env:COMPUTERNAME
-                        OlderThanQuantity = 3
-                    }
-                    @{
-                        Remove            = 'file'
-                        Path              = $testFile[1]
-                        ComputerName      = $env:COMPUTERNAME
-                        OlderThanQuantity = 3
+                        ComputerName               = $env:COMPUTERNAME
+                        SourceFolderPath           = $testFolder.Source
+                        DestinationFolderPath      = $testFolder.Destination
+                        DestinationFolderStructure = 'Year\Month'
+                        OlderThanUnit              = 'Day'
+                        OlderThanQuantity          = 3
                     }
                 )
             } | ConvertTo-Json | Out-File @testOutParams
 
-            $testRemoved = @{
-                files   = @($testFile[0])
-                folders = $null
-            }
-            $testNotRemoved = @{
-                files   = @($testFile[1], $testFile[2])
-                folders = @($testFolder[0], $testFolder[1], $testFolder[2])
+            Get-Item -Path $testFile | ForEach-Object {
+                $_.CreationTime = (Get-Date).AddDays(-4)
             }
 
             . $testScript @testParams
-        }
-        Context 'remove the requested' {
-            It 'files' {
-                $testRemoved.files | Where-Object { $_ } | ForEach-Object {
-                    $_ | Should -Not -Exist
-                }
-            }
-            It 'folders' {
-                $testRemoved.folders | Where-Object { $_ } | ForEach-Object {
-                    $_ | Should -Not -Exist
-                }
-            }
-        }
-        Context 'not remove other' {
-            It 'files' {
-                $testNotRemoved.files | Where-Object { $_ } | ForEach-Object {
-                    $_ | Should -Exist
-                }
-            }
-            It 'folders' {
-                $testNotRemoved.folders | Where-Object { $_ } | ForEach-Object {
-                    $_ | Should -Exist
-                }
-            }
-        }
-    }   
-}
-Describe "when 'Remove' is 'folder'" {
-    Context  "and 'OlderThanQuantity' is '0'" {
-        BeforeAll {
-            $testFolder = 0..2 | ForEach-Object {
-            (New-Item "TestDrive:/folder$_" -ItemType Directory).FullName
-            }
-            $testFile = 0..2 | ForEach-Object {
-            (New-Item "TestDrive:/file$_.txt" -ItemType File).FullName
-            }
 
+            Get-ChildItem -Path $testFolder.Source | Should -HaveCount 0
+            Get-ChildItem -Path $testFolder.Destination | Should -HaveCount 1
+        }
+        It 'Month' {
             @{
                 MailTo = @('bob@contoso.com')
                 Tasks  = @(
                     @{
-                        Remove            = 'folder'
-                        Path              = $testFolder[0]
-                        ComputerName      = $env:COMPUTERNAME
-                        OlderThanQuantity = 0
-                    }
-                    @{
-                        Remove            = 'folder'
-                        Path              = 'c:\Not Existing Folder'
-                        ComputerName      = $env:COMPUTERNAME
-                        OlderThanQuantity = 0
+                        ComputerName               = $env:COMPUTERNAME
+                        SourceFolderPath           = $testFolder.Source
+                        DestinationFolderPath      = $testFolder.Destination
+                        DestinationFolderStructure = 'Year\Month'
+                        OlderThanUnit              = 'Month'
+                        OlderThanQuantity          = 3
                     }
                 )
             } | ConvertTo-Json | Out-File @testOutParams
 
-            $testExportedExcelRows = @(
-                @{
-                    ComputerName = $env:COMPUTERNAME
-                    Type         = 'Folder'
-                    Path         = $testFolder[0]
-                    Error        = $null
-                    Action       = 'Removed'
-                }
-                @{
-                    ComputerName = $env:COMPUTERNAME
-                    Type         = 'Folder'
-                    Path         = 'c:\not existing folder'
-                    Error        = 'Path not found'
-                    Action       = $null
-                }
-            )
-            $testRemoved = @{
-                files   = $null
-                folders = @($testFolder[0])
-            }
-            $testNotRemoved = @{
-                files   = @($testFile[0], $testFile[1], $testFile[2])
-                folders = @($testFolder[1], $testFolder[2])
-            }
-            $testMail = @{
-                Priority = 'High'
-                Subject  = '1 removed, 1 error'
-                Message  = "*<ul><li><a href=`"\\$env:COMPUTERNAME\c$\not existing folder`">\\$env:COMPUTERNAME\c$\not existing folder</a><br>Remove folder<br>Removed: 0, <b style=`"color:red;`">errors: 1</b><br><br></li>*$($testFolder[0].Name)*Remove folder<br>Removed: 1</li></ul><p><i>* Check the attachment for details</i></p>*"
+            Get-Item -Path $testFile | ForEach-Object {
+                $_.CreationTime = (Get-Date).AddMonths(-4)
             }
 
-            $Error.Clear()
             . $testScript @testParams
-        }
-        Context 'remove the requested' {
-            It 'files' {
-                $testRemoved.files | Where-Object { $_ } | ForEach-Object {
-                    $_ | Should -Not -Exist
-                }
-            }
-            It 'folders' {
-                $testRemoved.folders | Where-Object { $_ } | ForEach-Object {
-                    $_ | Should -Not -Exist
-                }
-            }
-        }
-        Context 'not remove other' {
-            It 'files' {
-                $testNotRemoved.files | Where-Object { $_ } | ForEach-Object {
-                    $_ | Should -Exist
-                }
-            }
-            It 'folders' {
-                $testNotRemoved.folders | Where-Object { $_ } | ForEach-Object {
-                    $_ | Should -Exist
-                }
-            }
-        }
-        Context 'export an Excel file' {
-            BeforeAll {
-                $testExcelLogFile = Get-ChildItem $testParams.LogFolder -File -Recurse -Filter '*.xlsx'
 
-                $actual = Import-Excel -Path $testExcelLogFile.FullName -WorksheetName 'Overview'
-            }
-            It 'to the log folder' {
-                $testExcelLogFile | Should -Not -BeNullOrEmpty
-            }
-            It 'with the correct total rows' {
-                $actual | Should -HaveCount $testExportedExcelRows.Count
-            }
-            It 'with the correct data in the rows' {
-                foreach ($testRow in $testExportedExcelRows) {
-                    $actualRow = $actual | Where-Object {
-                        $_.Path -eq $testRow.Path
-                    }
-                    $actualRow.ComputerName | Should -Be $testRow.ComputerName
-                    $actualRow.Type | Should -Be $testRow.Type
-                    $actualRow.Path | Should -Be $testRow.Path
-                    $actualRow.Error | Should -Be $testRow.Error
-                    $actualRow.Action | Should -Be $testRow.Action
-                }
-            }
+            Get-ChildItem -Path $testFolder.Source | Should -HaveCount 0
+            Get-ChildItem -Path $testFolder.Destination | Should -HaveCount 1
         }
-        It 'send a summary mail to the user' {
-            Should -Invoke Send-MailHC -Exactly 1 -Scope Context -ParameterFilter {
-            ($To -eq 'bob@contoso.com') -and
-            ($Bcc -eq $ScriptAdmin) -and
-            ($Priority -eq $testMail.Priority) -and
-            ($Subject -eq $testMail.Subject) -and
-            ($Attachments -like '*log.xlsx') -and
-            ($Message -like $testMail.Message)
+        It 'Year' {
+            @{
+                MailTo = @('bob@contoso.com')
+                Tasks  = @(
+                    @{
+                        ComputerName               = $env:COMPUTERNAME
+                        SourceFolderPath           = $testFolder.Source
+                        DestinationFolderPath      = $testFolder.Destination
+                        DestinationFolderStructure = 'Year\Month'
+                        OlderThanUnit              = 'Year'
+                        OlderThanQuantity          = 3
+                    }
+                )
+            } | ConvertTo-Json | Out-File @testOutParams
+
+            Get-Item -Path $testFile | ForEach-Object {
+                $_.CreationTime = (Get-Date).AddYears(-4)
             }
+
+            . $testScript @testParams
+
+            Get-ChildItem -Path $testFolder.Source | Should -HaveCount 0
+            Get-ChildItem -Path $testFolder.Destination | Should -HaveCount 1
         }
     }
-    Context  "and 'OlderThanQuantity' is not '0'" {
-        BeforeAll {
-            $testFolder = 0..2 | ForEach-Object {
-                (New-Item "TestDrive:/folder$_" -ItemType Directory).FullName
-            }
-            $testFile = 0..2 | ForEach-Object {
-                (New-Item "TestDrive:/file$_.txt" -ItemType File).FullName
-            }
-
-            @($testFile[0], $testFolder[0]) | ForEach-Object {
-                $testItem = Get-Item -LiteralPath $_
-                $testItem.CreationTime = (Get-Date).AddDays(-5)
-            }
-
-            @{
-                MailTo = @('bob@contoso.com')
-                Tasks  = @(
-                    @{
-                        Remove        = 'folder'
-                        Path          = $testFolder[0]
-                        ComputerName  = $env:COMPUTERNAME
-                        OlderThanDays = 3
-                    }
-                    @{
-                        Remove        = 'folder'
-                        Path          = $testFolder[1]
-                        ComputerName  = $env:COMPUTERNAME
-                        OlderThanDays = 3
-                    }
-                )
-            } | ConvertTo-Json | Out-File @testOutParams
-
-            $testRemoved = @{
-                files   = $null
-                folders = @($testFolder[0])
-            }
-            $testNotRemoved = @{
-                files   = @($testFile[0], $testFile[1], $testFile[2])
-                folders = @($testFolder[1], $testFolder[2])
-            }
-
-            . $testScript @testParams
-        }
-        Context 'remove the requested' {
-            It 'files' {
-                $testRemoved.files | Where-Object { $_ } | ForEach-Object {
-                    $_ | Should -Not -Exist
-                }
-            }
-            It 'folders' {
-                $testRemoved.folders | Where-Object { $_ } | ForEach-Object {
-                    $_ | Should -Not -Exist
-                }
-            }
-        }
-        Context 'not remove other' {
-            It 'files' {
-                $testNotRemoved.files | Where-Object { $_ } | ForEach-Object {
-                    $_ | Should -Exist
-                }
-            }
-            It 'folders' {
-                $testNotRemoved.folders | Where-Object { $_ } | ForEach-Object {
-                    $_ | Should -Exist
-                }
-            }
-        }
-    }
-}
-Describe "when 'Remove' is 'content' and remove empty folders" {
-    Context  "and 'OlderThanDays' is '0'" {
-        BeforeAll {
-            $testFolder = 0..2 | ForEach-Object {
-            (New-Item "TestDrive:/folder$_" -ItemType Directory).FullName
-            }
-            $testFile = 0..2 | ForEach-Object {
-            (New-Item "TestDrive:/file$_.txt" -ItemType File).FullName
-            }
-        
-            $testFolder += 
-        (New-Item "$($testFolder[0])/sub" -ItemType Directory).FullName
-
-            $testFile += 
-        (New-Item "$($testFolder[0])/sub/file.txt" -ItemType File).FullName
-
-            @{
-                MailTo = @('bob@contoso.com')
-                Tasks  = @(
-                    @{
-                        Remove             = 'content'
-                        Path               = $testFolder[0]
-                        ComputerName       = $env:COMPUTERNAME
-                        RemoveEmptyFolders = $true
-                        OlderThanDays      = 0
-                    }
-                    @{
-                        Remove             = 'content'
-                        Path               = 'c:\Not Existing Folder'
-                        ComputerName       = $env:COMPUTERNAME
-                        RemoveEmptyFolders = $true
-                        OlderThanDays      = 0
-                    }
-                )
-            } | ConvertTo-Json | Out-File @testOutParams
-
-            $testExportedExcelRows = @(
-                @{
-                    ComputerName = $env:COMPUTERNAME
-                    Type         = 'Folder'
-                    Path         = $testFolder[3]
-                    Error        = $null
-                    Action       = 'Removed'
-                }
-                @{
-                    ComputerName = $env:COMPUTERNAME
-                    Type         = 'File'
-                    Path         = $testFile[3]
-                    Error        = $null
-                    Action       = 'Removed'
-                }
-            )
-            $testRemoved = @{
-                files   = @($testFile[3])
-                folders = @($testFolder[3])
-            }
-            $testNotRemoved = @{
-                files   = @($testFile[0], $testFile[1], $testFile[2])
-                folders = @($testFolder[0], $testFolder[1], $testFolder[2])
-            }
-            $testMail = @{
-                Priority = 'High'
-                Subject  = '2 removed, 1 error'
-                Message  = "*<ul><li><a href=`"\\$env:COMPUTERNAME\c$\not existing folder`">\\$env:COMPUTERNAME\c$\not existing folder</a><br>Remove folder content and remove empty folders<br>Removed: 0<br><b style=`"color:red;`">Folder not found</b><br><br></li>*$($testFolder[0].Name)*Remove folder content and remove empty folders<br>Removed: 2</li></ul><p><i>* Check the attachment for details</i></p>*"
-            }
-
-            $Error.Clear()
-            . $testScript @testParams
-        }
-        Context 'remove the requested' {
-            It 'files' {
-                $testRemoved.files | Where-Object { $_ } | ForEach-Object {
-                    $_ | Should -Not -Exist
-                }
-            }
-            It 'folders' {
-                $testRemoved.folders | Where-Object { $_ } | ForEach-Object {
-                    $_ | Should -Not -Exist
-                }
-            }
-        }
-        Context 'not remove other' {
-            It 'files' {
-                $testNotRemoved.files | Where-Object { $_ } | ForEach-Object {
-                    $_ | Should -Exist
-                }
-            }
-            It 'folders' {
-                $testNotRemoved.folders | Where-Object { $_ } | ForEach-Object {
-                    $_ | Should -Exist
-                }
-            }
-        }
-        Context 'export an Excel file' {
-            BeforeAll {
-                $testExcelLogFile = Get-ChildItem $testParams.LogFolder -File -Recurse -Filter '*.xlsx'
-
-                $actual = Import-Excel -Path $testExcelLogFile.FullName -WorksheetName 'Overview'
-            }
-            It 'to the log folder' {
-                $testExcelLogFile | Should -Not -BeNullOrEmpty
-            }
-            It 'with the correct total rows' {
-                $actual | Should -HaveCount $testExportedExcelRows.Count
-            }
-            It 'with the correct data in the rows' {
-                foreach ($testRow in $testExportedExcelRows) {
-                    $actualRow = $actual | Where-Object {
-                        $_.Path -eq $testRow.Path
-                    }
-                    $actualRow.ComputerName | Should -Be $testRow.ComputerName
-                    $actualRow.Type | Should -Be $testRow.Type
-                    $actualRow.Path | Should -Be $testRow.Path
-                    $actualRow.Error | Should -Be $testRow.Error
-                    $actualRow.Action | Should -Be $testRow.Action
-                    $actualRow.CreationTime | Should -Not -BeNullOrEmpty
-                }
-            }
-        }
-        It 'send a summary mail to the user' {
-            Should -Invoke Send-MailHC -Exactly 1 -Scope Context -ParameterFilter {
-            ($To -eq 'bob@contoso.com') -and
-            ($Bcc -eq $ScriptAdmin) -and
-            ($Priority -eq $testMail.Priority) -and
-            ($Subject -eq $testMail.Subject) -and
-            ($Attachments -like '*log.xlsx') -and
-            ($Message -like $testMail.Message)
-            }
-        }
-    }
-    Context  "and 'OlderThanDays' is not '0'" {
-        BeforeAll {
-            $testFolder = @(
-                'TestDrive:/folderA' ,
-                'TestDrive:/folderB' ,
-                'TestDrive:/folderA/subA',
-                'TestDrive:/folderA/subAA',
-                'TestDrive:/folderB/subB',
-                'TestDrive:/folderB/subBB'
-            ) | ForEach-Object {
-                (New-Item $_ -ItemType Directory).FullName
-            }
-            $testFile = @(
-                'TestDrive:/fileX.txt',
-                'TestDrive:/fileZ.txt'
-                'TestDrive:/folderA/fileA.txt',
-                'TestDrive:/folderA/subA/fileSubA.txt',
-                'TestDrive:/folderB/fileB.txt' ,
-                'TestDrive:/folderB/subB/fileSubB.txt'
-            ) | ForEach-Object {
-                (New-Item $_ -ItemType File).FullName
-            }
-
-            @(
-                $testFolder[0], 
-                $testFolder[2], 
-                $testFile[0], 
-                $testFile[1],
-                $testFile[2],
-                $testFile[4], 
-                $testFile[5]
-            ) | ForEach-Object {
-                $testItem = Get-Item -LiteralPath $_
-                $testItem.CreationTime = (Get-Date).AddDays(-5)
-            }
-
-            @{
-                MailTo = @('bob@contoso.com')
-                Tasks  = @(
-                    @{
-                        Remove             = 'content'
-                        Path               = $testFolder[0]
-                        ComputerName       = $env:COMPUTERNAME
-                        OlderThanDays      = 3
-                        RemoveEmptyFolders = $true
-                    }
-                    @{
-                        Remove             = 'content'
-                        Path               = $testFolder[1]
-                        ComputerName       = $env:COMPUTERNAME
-                        OlderThanDays      = 3
-                        RemoveEmptyFolders = $true
-                    }
-                )
-            } | ConvertTo-Json | Out-File @testOutParams
-
-            $testRemoved = @{
-                files   = @($testFile[2], $testFile[4], $testFile[5])
-                folders = @($testFolder[3], $testFolder[4], $testFolder[5])
-            }
-            $testNotRemoved = @{
-                files   = @($testFile[3], $testFile[0], $testFile[1])
-                folders = @($testFolder[0], $testFolder[2])
-            }
-
-            . $testScript @testParams
-        }
-        Context 'remove the requested' {
-            It 'files' {
-                $testRemoved.files | Where-Object { $_ } | ForEach-Object {
-                    $_ | Should -Not -Exist
-                }
-            }
-            It 'folders' {
-                $testRemoved.folders | Where-Object { $_ } | ForEach-Object {
-                    $_ | Should -Not -Exist
-                }
-            }
-        }
-        Context 'not remove other' {
-            It 'files' {
-                $testNotRemoved.files | Where-Object { $_ } | ForEach-Object {
-                    $_ | Should -Exist
-                }
-            }
-            It 'folders' {
-                $testNotRemoved.folders | Where-Object { $_ } | ForEach-Object {
-                    $_ | Should -Exist
-                }
-            }
-        }
-    }
-}
-Describe "when 'Remove' is 'content' and do not remove empty folders" {
-    Context  "and 'OlderThanDays' is '0'" {
-        BeforeAll {
-            $testFolder = 0..2 | ForEach-Object {
-            (New-Item "TestDrive:/folder$_" -ItemType Directory).FullName
-            }
-            $testFile = 0..2 | ForEach-Object {
-            (New-Item "TestDrive:/file$_.txt" -ItemType File).FullName
-            }
-        
-            $testFile += 
-        (New-Item "$($testFolder[0])/file.txt" -ItemType File).FullName
-
-            $testFolder += 
-        (New-Item "$($testFolder[0])/sub" -ItemType Directory).FullName
-
-            $testFile += 
-        (New-Item "$($testFolder[0])/sub/file.txt" -ItemType File).FullName
-        
-            @{
-                MailTo = @('bob@contoso.com')
-                Tasks  = @(
-                    @{
-                        Remove             = 'content'
-                        Path               = $testFolder[0]
-                        ComputerName       = $env:COMPUTERNAME
-                        RemoveEmptyFolders = $false
-                        OlderThanDays      = 0
-                    }
-                    @{ 
-                        Remove             = 'content'
-                        Path               = 'c:\Not Existing Folder'
-                        ComputerName       = $env:COMPUTERNAME
-                        RemoveEmptyFolders = $true
-                        OlderThanDays      = 0
-                    }
-                )
-            } | ConvertTo-Json | Out-File @testOutParams
-
-            $testExportedExcelRows = @(
-                @{
-                    ComputerName = $env:COMPUTERNAME
-                    Type         = 'File'
-                    Path         = $testFile[3]
-                    Error        = $null
-                    Action       = 'Removed'
-                }
-                @{
-                    ComputerName = $env:COMPUTERNAME
-                    Type         = 'File'
-                    Path         = $testFile[4]
-                    Error        = $null
-                    Action       = 'Removed'
-                }
-            )
-            $testRemoved = @{
-                files   = @($testFile[3], $testFile[4])
-                folders = $null
-            }
-            $testNotRemoved = @{
-                files   = @($testFile[0], $testFile[1], $testFile[2])
-                folders = @(
-                    $testFolder[0], $testFolder[1], $testFolder[2], $testFolder[3]
-                )
-            }
-            $testMail = @{
-                Priority = 'High'
-                Subject  = '2 removed, 1 error'
-                Message  = "*<ul><li><a href=`"\\$env:COMPUTERNAME\c$\not existing folder`">\\$env:COMPUTERNAME\c$\not existing folder</a><br>Remove folder content and remove empty folders<br>Removed: 0<br><b style=`"color:red;`">Folder not found</b><br><br></li>*$($testFolder[0].Name)*Remove folder content<br>Removed: 2</li></ul><p><i>* Check the attachment for details</i></p>*"
-            }
-
-            $Error.Clear()
-            . $testScript @testParams
-        }
-        Context 'remove the requested' {
-            It 'files' {
-                $testRemoved.files | Where-Object { $_ } | ForEach-Object {
-                    $_ | Should -Not -Exist
-                }
-            }
-            It 'folders' {
-                $testRemoved.folders | Where-Object { $_ } | ForEach-Object {
-                    $_ | Should -Not -Exist
-                }
-            }
-        }
-        Context 'not remove other' {
-            It 'files' {
-                $testNotRemoved.files | Where-Object { $_ } | ForEach-Object {
-                    $_ | Should -Exist
-                }
-            }
-            It 'folders' {
-                $testNotRemoved.folders | Where-Object { $_ } | ForEach-Object {
-                    $_ | Should -Exist
-                }
-            }
-        }
-        Context 'export an Excel file' {
-            BeforeAll {
-                $testExcelLogFile = Get-ChildItem $testParams.LogFolder -File -Recurse -Filter '*.xlsx'
-
-                $actual = Import-Excel -Path $testExcelLogFile.FullName -WorksheetName 'Overview'
-            }
-            It 'to the log folder' {
-                $testExcelLogFile | Should -Not -BeNullOrEmpty
-            }
-            It 'with the correct total rows' {
-                $actual | Should -HaveCount $testExportedExcelRows.Count
-            }
-            It 'with the correct data in the rows' {
-                foreach ($testRow in $testExportedExcelRows) {
-                    $actualRow = $actual | Where-Object {
-                        $_.Path -eq $testRow.Path
-                    }
-                    $actualRow.ComputerName | Should -Be $testRow.ComputerName
-                    $actualRow.Type | Should -Be $testRow.Type
-                    $actualRow.Path | Should -Be $testRow.Path
-                    $actualRow.Error | Should -Be $testRow.Error
-                    $actualRow.Action | Should -Be $testRow.Action
-                    $actualRow.CreationTime | Should -Not -BeNullOrEmpty
-                }
-            }
-        }
-        It 'send a summary mail to the user' {
-            Should -Invoke Send-MailHC -Exactly 1 -Scope Context -ParameterFilter {
-            ($To -eq 'bob@contoso.com') -and
-            ($Bcc -eq $ScriptAdmin) -and
-            ($Priority -eq $testMail.Priority) -and
-            ($Subject -eq $testMail.Subject) -and
-            ($Attachments -like '*log.xlsx') -and
-            ($Message -like $testMail.Message)
-            }
-        }
-    }
-    Context  "and 'OlderThanDays' is not '0'" {
-        BeforeAll {
-            $testFolder = @(
-                'TestDrive:/folderA' ,
-                'TestDrive:/folderB' ,
-                'TestDrive:/folderA/subA',
-                'TestDrive:/folderB/subB'
-            ) | ForEach-Object {
-                (New-Item $_ -ItemType Directory).FullName
-            }
-            $testFile = @(
-                'TestDrive:/fileX.txt',
-                'TestDrive:/fileZ.txt'
-                'TestDrive:/folderA/fileA.txt',
-                'TestDrive:/folderA/subA/fileSubA.txt',
-                'TestDrive:/folderB/fileB.txt' ,
-                'TestDrive:/folderB/subB/fileSubB.txt'
-            ) | ForEach-Object {
-                (New-Item $_ -ItemType File).FullName
-            }
-
-            @(
-                $testFolder[0], 
-                $testFolder[2], 
-                $testFile[0], 
-                $testFile[1],
-                $testFile[2],
-                $testFile[4], 
-                $testFile[5]
-            ) | ForEach-Object {
-                $testItem = Get-Item -LiteralPath $_
-                $testItem.CreationTime = (Get-Date).AddDays(-5)
-            }
-
-            @{
-                MailTo = @('bob@contoso.com')
-                Tasks  = @(
-                    @{
-                        Remove             = 'content'
-                        Path               = $testFolder[0]
-                        ComputerName       = $env:COMPUTERNAME
-                        OlderThanDays      = 3
-                        RemoveEmptyFolders = $false
-                    }
-                    @{
-                        Remove             = 'content'
-                        Path               = $testFolder[1]
-                        ComputerName       = $env:COMPUTERNAME
-                        OlderThanDays      = 3
-                        RemoveEmptyFolders = $false
-                    }
-                )
-            } | ConvertTo-Json | Out-File @testOutParams
-
-            $testRemoved = @{
-                files   = @($testFile[2], $testFile[4], $testFile[5])
-                folders = $null
-            }
-            $testNotRemoved = @{
-                files   = @($testFile[3], $testFile[0], $testFile[1])
-                folders = @($testFolder[0], $testFolder[2])
-            }
-
-            . $testScript @testParams
-        }
-        Context 'remove the requested' {
-            It 'files' {
-                $testRemoved.files | Where-Object { $_ } | ForEach-Object {
-                    $_ | Should -Not -Exist
-                }
-            }
-            It 'folders' {
-                $testRemoved.folders | Where-Object { $_ } | ForEach-Object {
-                    $_ | Should -Not -Exist
-                }
-            }
-        }
-        Context 'not remove other' {
-            It 'files' {
-                $testNotRemoved.files | Where-Object { $_ } | ForEach-Object {
-                    $_ | Should -Exist
-                }
-            }
-            It 'folders' {
-                $testNotRemoved.folders | Where-Object { $_ } | ForEach-Object {
-                    $_ | Should -Exist
-                }
-            }
-        }
-    }
-}
+} -Tag test
