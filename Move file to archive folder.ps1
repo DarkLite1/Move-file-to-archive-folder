@@ -49,7 +49,7 @@ Param (
     [Parameter(Mandatory)]
     [String]$ImportFile,
     [Int]$MaxConcurrentJobs = 4,
-    [String]$LogFolder = $env:POWERSHELL_LOG_FOLDER,
+    [String]$LogFolder = "$env:POWERSHELL_LOG_FOLDER\File or folder\Move file to archive folder\$ScriptName",
     [String]$ScriptAdmin = $env:POWERSHELL_SCRIPT_ADMIN
 )
 
