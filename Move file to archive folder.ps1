@@ -523,12 +523,12 @@ End {
                 ).Count
             ),
             $(
-                if ($moveFilesErrorCount = (
+                if ($errorCount = (
                         $task.JobResults | 
                         Where-Object { $_.Error } | 
                         Measure-Object
-                    ).Count) {
-                    ', <b style="color:red;">errors: {0}</b>' -f $moveFilesErrorCount
+                    ).Count + $task.JobErrors.Count) {
+                    ', <b style="color:red;">errors: {0}</b>' -f $errorCount
                 }
             ),
             $(
