@@ -40,6 +40,9 @@
 
     .PARAMETER OlderThanQuantity
         A number to be used in combination with OlderThanUnit
+
+    .EXAMPLE
+        See Example.json
 #>
 
 [CmdLetBinding()]
