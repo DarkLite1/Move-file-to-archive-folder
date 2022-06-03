@@ -427,19 +427,13 @@ End {
         #region Count results, errors, ...
         $counter = @{
             movedFiles      = (
-                $jobResults | Where-Object { $_.Action -like 'File moved*' } | 
+                $jobResults | 
+                Where-Object { $_.Action -like 'File moved*' } | 
                 Measure-Object
             ).Count
-            moveFilesErrors = (
-                $jobResults | Where-Object { $_.Error } | Measure-Object
-            ).Count
-            jobErrors       = (
-                $Tasks.jobErrors | Where-Object { $_ } | Measure-Object
-            ).Count
-            systemErrors    = (
-                $Error.Exception.Message | Where-Object { $_ } |
-                Measure-Object
-            ).Count
+            moveFilesErrors = ($jobResults.Error | Measure-Object).Count
+            jobErrors       = ($Tasks.jobErrors | Measure-Object).Count
+            systemErrors    = ($Error.Exception.Message | Measure-Object).Count
         }
         #endregion
 
