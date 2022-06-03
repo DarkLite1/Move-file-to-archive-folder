@@ -402,7 +402,10 @@ Process {
                 AutoSize           = $true
                 FreezeTopRow       = $true
             }
-            $jobResults | Select-Object -Property * -ExcludeProperty 'PSComputerName', 'RunSpaceId' | Export-Excel @excelParams
+            $jobResults | 
+            Select-Object -Property * -ExcludeProperty 'PSComputerName',
+            'RunSpaceId', 'PSShowComputerName' | 
+            Export-Excel @excelParams
 
             $mailParams.Attachments = $excelParams.Path
         }
@@ -524,7 +527,7 @@ End {
                         Where-Object { $_.Error } | 
                         Measure-Object
                     ).Count) {
-                        ', <b style="color:red;">errors: {0}</b>' -f $moveFilesErrorCount
+                    ', <b style="color:red;">errors: {0}</b>' -f $moveFilesErrorCount
                 }
             ),
             $(
