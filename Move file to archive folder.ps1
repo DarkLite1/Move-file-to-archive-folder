@@ -387,8 +387,6 @@ Process {
                 $task.OlderThanUnit, $task.OlderThanQuantity, $e.ToString()
                 Write-Verbose $M; Write-EventLog @EventErrorParams -Message $M
             }
-            
-            Write-Verbose "task: $($task.Name) error: $($task.JobErrors)"
         }
         #endregion
 
