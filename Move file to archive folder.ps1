@@ -368,7 +368,7 @@ Process {
         $M = "Wait for all $($Tasks.count) jobs to finish"
         Write-Verbose $M; Write-EventLog @EventOutParams -Message $M
 
-        $Tasks.Job | Wait-Job
+        $null = $Tasks.Job | Wait-Job
         #endregion
 
         #region Get job results and job errors
