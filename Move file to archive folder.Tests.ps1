@@ -2,6 +2,25 @@
 #Requires -Version 5.1
 
 BeforeAll {
+    $testFolder = @{
+        Source      = (New-Item 'TestDrive:/Source' -ItemType Directory).FullName
+        Destination = (New-Item 'TestDrive:/Destination' -ItemType Directory).FullName
+    }
+
+    $testInputFile = @{
+        MailTo            = 'bob@contoso.com'
+        MaxConcurrentJobs = 5
+        Tasks             = @(
+            @{
+                SourceFolderPath           = '\\contoso\folderA'
+                DestinationFolderPath      = '\\contoso\folderB'
+                DestinationFolderStructure = 'Year\Month'
+                OlderThanUnit              = 'Month'
+                OlderThanQuantity          = 1
+            }
+        )
+    }
+
     $testOutParams = @{
         FilePath = (New-Item "TestDrive:/Test.json" -ItemType File).FullName
         Encoding = 'utf8'
@@ -15,24 +34,19 @@ BeforeAll {
         ScriptAdmin = 'admin@contoso.com'
     }
 
-    $testFolder = @{
-        Source      = (New-Item 'TestDrive:/Source' -ItemType Directory).FullName
-        Destination = (New-Item 'TestDrive:/Destination' -ItemType Directory).FullName
-    }
-
     Mock Send-MailHC
     Mock Write-EventLog
 }
 Describe 'the mandatory parameters are' {
     It '<_>' -ForEach @('ImportFile', 'ScriptName') {
-        (Get-Command $testScript).Parameters[$_].Attributes.Mandatory | 
+        (Get-Command $testScript).Parameters[$_].Attributes.Mandatory |
         Should -BeTrue
     }
 }
 Describe 'send an e-mail to the admin when' {
     BeforeAll {
         $MailAdminParams = {
-            ($To -eq $testParams.ScriptAdmin) -and ($Priority -eq 'High') -and 
+            ($To -eq $testParams.ScriptAdmin) -and ($Priority -eq 'High') -and
             ($Subject -eq 'FAILURE')
         }
     }
@@ -43,7 +57,7 @@ Describe 'send an e-mail to the admin when' {
         .$testScript @testNewParams
 
         Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-            (&$MailAdminParams) -and 
+            (&$MailAdminParams) -and
             ($Message -like '*Failed creating the log folder*')
         }
     }
@@ -51,9 +65,9 @@ Describe 'send an e-mail to the admin when' {
         It 'is not found' {
             $testNewParams = $testParams.clone()
             $testNewParams.ImportFile = 'nonExisting.json'
-    
+
             .$testScript @testNewParams
-    
+
             Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                     (&$MailAdminParams) -and ($Message -like "Cannot find path*nonExisting.json*")
             }
@@ -63,13 +77,14 @@ Describe 'send an e-mail to the admin when' {
         }
         Context 'property' {
             It 'MailTo is missing' {
-                @{
-                    # MailTo       = @('bob@contoso.com')
-                    Tasks = @()
-                } | ConvertTo-Json | Out-File @testOutParams
-                
+                $testNewInputFile = Copy-ObjectHC $testInputFile
+                $testNewInputFile.MailTo = $null
+
+                $testNewInputFile | ConvertTo-Json -Depth 5 |
+                Out-File @testOutParams
+
                 .$testScript @testParams
-                
+
                 Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                     (&$MailAdminParams) -and ($Message -like "*$ImportFile*No 'MailTo' addresses found*")
                 }
@@ -78,12 +93,14 @@ Describe 'send an e-mail to the admin when' {
                 }
             }
             It 'Tasks is missing' {
-                @{
-                    MailTo = @('bob@contoso.com')
-                } | ConvertTo-Json | Out-File @testOutParams
-                
+                $testNewInputFile = Copy-ObjectHC $testInputFile
+                $testNewInputFile.Tasks = $null
+
+                $testNewInputFile | ConvertTo-Json -Depth 5 |
+                Out-File @testOutParams
+
                 .$testScript @testParams
-                
+
                 Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                     (&$MailAdminParams) -and ($Message -like "*$ImportFile*No 'Tasks' found*")
                 }
@@ -92,21 +109,14 @@ Describe 'send an e-mail to the admin when' {
                 }
             }
             It 'SourceFolderPath is missing' {
-                @{
-                    MailTo = @('bob@contoso.com')
-                    Tasks  = @(
-                        @{
-                            # SourceFolderPath           = '\\contoso\folderA'
-                            DestinationFolderPath      = '\\contoso\folderB'
-                            DestinationFolderStructure = 'Year\Month'
-                            OlderThanUnit              = 'Month'
-                            OlderThanQuantity          = 1
-                        }
-                    )
-                } | ConvertTo-Json | Out-File @testOutParams
-                
+                $testNewInputFile = Copy-ObjectHC $testInputFile
+                $testNewInputFile.Tasks[0].SourceFolderPath = $null
+
+                $testNewInputFile | ConvertTo-Json -Depth 5 |
+                Out-File @testOutParams
+
                 .$testScript @testParams
-                
+
                 Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                     (&$MailAdminParams) -and ($Message -like "*$ImportFile*No 'SourceFolderPath' found*")
                 }
@@ -115,21 +125,14 @@ Describe 'send an e-mail to the admin when' {
                 }
             }
             It 'DestinationFolderPath is missing' {
-                @{
-                    MailTo = @('bob@contoso.com')
-                    Tasks  = @(
-                        @{
-                            SourceFolderPath           = '\\contoso\folderA'
-                            # DestinationFolderPath      = '\\contoso\folderB'
-                            DestinationFolderStructure = 'Year\Month'
-                            OlderThanUnit              = 'Month'
-                            OlderThanQuantity          = 1
-                        }
-                    )
-                } | ConvertTo-Json | Out-File @testOutParams
-                
+                $testNewInputFile = Copy-ObjectHC $testInputFile
+                $testNewInputFile.Tasks[0].DestinationFolderPath = $null
+
+                $testNewInputFile | ConvertTo-Json -Depth 5 |
+                Out-File @testOutParams
+
                 .$testScript @testParams
-                
+
                 Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                     (&$MailAdminParams) -and ($Message -like "*$ImportFile*No 'DestinationFolderPath' found*")
                 }
@@ -139,22 +142,23 @@ Describe 'send an e-mail to the admin when' {
             }
             Context 'ComputerName' {
                 It 'is used with DestinationFolderPath UNC path' {
-                    @{
-                        MailTo = @('bob@contoso.com')
-                        Tasks  = @(
-                            @{
-                                ComputerName               = $env:COMPUTERNAME
-                                SourceFolderPath           = '\\contoso\folderA'
-                                DestinationFolderPath      = 'C:\folderB'
-                                DestinationFolderStructure = 'Year\Month'
-                                OlderThanUnit              = 'Month'
-                                OlderThanQuantity          = 1
-                            }
-                        )
-                    } | ConvertTo-Json | Out-File @testOutParams
-                
+                    $testNewInputFile = Copy-ObjectHC $testInputFile
+                    $testNewInputFile.Tasks = @(
+                        @{
+                            ComputerName               = $env:COMPUTERNAME
+                            SourceFolderPath           = '\\contoso\folderA'
+                            DestinationFolderPath      = 'C:\folderB'
+                            DestinationFolderStructure = 'Year\Month'
+                            OlderThanUnit              = 'Month'
+                            OlderThanQuantity          = 1
+                        }
+                    )
+
+                    $testNewInputFile | ConvertTo-Json -Depth 5 |
+                    Out-File @testOutParams
+
                     .$testScript @testParams
-                
+
                     Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                     (&$MailAdminParams) -and ($Message -like "*$ImportFile*When ComputerName is used only local paths are allowed*")
                     }
@@ -163,22 +167,23 @@ Describe 'send an e-mail to the admin when' {
                     }
                 }
                 It 'is used with SourceFolderPath UNC path' {
-                    @{
-                        MailTo = @('bob@contoso.com')
-                        Tasks  = @(
-                            @{
-                                ComputerName               = $env:COMPUTERNAME
-                                SourceFolderPath           = 'C:\folderA'
-                                DestinationFolderPath      = '\\contoso\folderB'
-                                DestinationFolderStructure = 'Year\Month'
-                                OlderThanUnit              = 'Month'
-                                OlderThanQuantity          = 1
-                            }
-                        )
-                    } | ConvertTo-Json | Out-File @testOutParams
-                
+                    $testNewInputFile = Copy-ObjectHC $testInputFile
+                    $testNewInputFile.Tasks = @(
+                        @{
+                            ComputerName               = $env:COMPUTERNAME
+                            SourceFolderPath           = 'C:\folderA'
+                            DestinationFolderPath      = '\\contoso\folderB'
+                            DestinationFolderStructure = 'Year\Month'
+                            OlderThanUnit              = 'Month'
+                            OlderThanQuantity          = 1
+                        }
+                    )
+
+                    $testNewInputFile | ConvertTo-Json -Depth 5 |
+                    Out-File @testOutParams
+
                     .$testScript @testParams
-                
+
                     Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                     (&$MailAdminParams) -and ($Message -like "*$ImportFile*When ComputerName is used only local paths are allowed*")
                     }
@@ -187,22 +192,23 @@ Describe 'send an e-mail to the admin when' {
                     }
                 }
                 It 'is not used and DestinationFolderPath is a local path' {
-                    @{
-                        MailTo = @('bob@contoso.com')
-                        Tasks  = @(
-                            @{
-                                # ComputerName               = $env:COMPUTERNAME
-                                SourceFolderPath           = '\\contoso\folderA'
-                                DestinationFolderPath      = 'C:\folderB'
-                                DestinationFolderStructure = 'Year\Month'
-                                OlderThanUnit              = 'Month'
-                                OlderThanQuantity          = 1
-                            }
-                        )
-                    } | ConvertTo-Json | Out-File @testOutParams
-                
+                    $testNewInputFile = Copy-ObjectHC $testInputFile
+                    $testNewInputFile.Tasks = @(
+                        @{
+                            # ComputerName               = $env:COMPUTERNAME
+                            SourceFolderPath           = '\\contoso\folderA'
+                            DestinationFolderPath      = 'C:\folderB'
+                            DestinationFolderStructure = 'Year\Month'
+                            OlderThanUnit              = 'Month'
+                            OlderThanQuantity          = 1
+                        }
+                    )
+
+                    $testNewInputFile | ConvertTo-Json -Depth 5 |
+                    Out-File @testOutParams
+
                     .$testScript @testParams
-                
+
                     Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                     (&$MailAdminParams) -and ($Message -like "*$ImportFile*When local paths are used the ComputerName is mandatory*")
                     }
@@ -211,22 +217,23 @@ Describe 'send an e-mail to the admin when' {
                     }
                 }
                 It 'is not used and SourceFolderPath is a local path' {
-                    @{
-                        MailTo = @('bob@contoso.com')
-                        Tasks  = @(
-                            @{
-                                # ComputerName               = $env:COMPUTERNAME
-                                SourceFolderPath           = 'C:\folderA'
-                                DestinationFolderPath      = '\\contoso\folderB'
-                                DestinationFolderStructure = 'Year\Month'
-                                OlderThanUnit              = 'Month'
-                                OlderThanQuantity          = 1
-                            }
-                        )
-                    } | ConvertTo-Json | Out-File @testOutParams
-                
+                    $testNewInputFile = Copy-ObjectHC $testInputFile
+                    $testNewInputFile.Tasks = @(
+                        @{
+                            # ComputerName               = $env:COMPUTERNAME
+                            SourceFolderPath           = 'C:\folderA'
+                            DestinationFolderPath      = '\\contoso\folderB'
+                            DestinationFolderStructure = 'Year\Month'
+                            OlderThanUnit              = 'Month'
+                            OlderThanQuantity          = 1
+                        }
+                    )
+
+                    $testNewInputFile | ConvertTo-Json -Depth 5 |
+                    Out-File @testOutParams
+
                     .$testScript @testParams
-                
+
                     Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                         (&$MailAdminParams) -and ($Message -like "*$ImportFile*When local paths are used the ComputerName is mandatory*")
                     }
@@ -237,21 +244,22 @@ Describe 'send an e-mail to the admin when' {
             }
             Context 'DestinationFolderStructure' {
                 It 'is missing' {
-                    @{
-                        MailTo = @('bob@contoso.com')
-                        Tasks  = @(
-                            @{
-                                SourceFolderPath      = '\\contoso\folderA'
-                                DestinationFolderPath = '\\contoso\folderB'
-                                # DestinationFolderStructure = "Year\\Month"
-                                OlderThanUnit         = 'Month'
-                                OlderThanQuantity     = 1
-                            }
-                        )
-                    } | ConvertTo-Json | Out-File @testOutParams
-                
+                    $testNewInputFile = Copy-ObjectHC $testInputFile
+                    $testNewInputFile.Tasks = @(
+                        @{
+                            SourceFolderPath      = '\\contoso\folderA'
+                            DestinationFolderPath = '\\contoso\folderB'
+                            # DestinationFolderStructure = "Year\\Month"
+                            OlderThanUnit         = 'Month'
+                            OlderThanQuantity     = 1
+                        }
+                    )
+
+                    $testNewInputFile | ConvertTo-Json -Depth 5 |
+                    Out-File @testOutParams
+
                     .$testScript @testParams
-                
+
                     Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                     (&$MailAdminParams) -and ($Message -like "*$ImportFile*No 'DestinationFolderStructure' found*")
                     }
@@ -260,21 +268,22 @@ Describe 'send an e-mail to the admin when' {
                     }
                 }
                 It 'is not supported' {
-                    @{
-                        MailTo = @('bob@contoso.com')
-                        Tasks  = @(
-                            @{
-                                SourceFolderPath           = '\\contoso\folderA'
-                                DestinationFolderPath      = '\\contoso\folderB'
-                                DestinationFolderStructure = "wrong"
-                                OlderThanUnit              = 'Month'
-                                OlderThanQuantity          = 1
-                            }
-                        )
-                    } | ConvertTo-Json | Out-File @testOutParams
-                
+                    $testNewInputFile = Copy-ObjectHC $testInputFile
+                    $testNewInputFile.Tasks = @(
+                        @{
+                            SourceFolderPath           = '\\contoso\folderA'
+                            DestinationFolderPath      = '\\contoso\folderB'
+                            DestinationFolderStructure = "wrong"
+                            OlderThanUnit              = 'Month'
+                            OlderThanQuantity          = 1
+                        }
+                    )
+
+                    $testNewInputFile | ConvertTo-Json -Depth 5 |
+                    Out-File @testOutParams
+
                     .$testScript @testParams
-                
+
                     Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                     (&$MailAdminParams) -and ($Message -like "*$ImportFile*Value 'wrong' is not supported by 'DestinationFolderStructure'. Valid options are 'Year-Month', 'Year\Month', 'Year' or 'YYYYMM'.*")
                     }
@@ -285,21 +294,22 @@ Describe 'send an e-mail to the admin when' {
             }
             Context 'OlderThanUnit' {
                 It 'is missing' {
-                    @{
-                        MailTo = @('bob@contoso.com')
-                        Tasks  = @(
-                            @{
-                                SourceFolderPath           = '\\contoso\folderA'
-                                DestinationFolderPath      = '\\contoso\folderB'
-                                DestinationFolderStructure = 'Year\Month'
-                                # OlderThanUnit              = 'Month'
-                                OlderThanQuantity          = 1
-                            }
-                        )
-                    } | ConvertTo-Json | Out-File @testOutParams
-            
+                    $testNewInputFile = Copy-ObjectHC $testInputFile
+                    $testNewInputFile.Tasks = @(
+                        @{
+                            SourceFolderPath           = '\\contoso\folderA'
+                            DestinationFolderPath      = '\\contoso\folderB'
+                            DestinationFolderStructure = 'Year\Month'
+                            # OlderThanUnit              = 'Month'
+                            OlderThanQuantity          = 1
+                        }
+                    )
+
+                    $testNewInputFile | ConvertTo-Json -Depth 5 |
+                    Out-File @testOutParams
+
                     .$testScript @testParams
-                            
+
                     Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                 (&$MailAdminParams) -and ($Message -like "*$ImportFile*No 'OlderThanUnit' found*")
                     }
@@ -308,21 +318,22 @@ Describe 'send an e-mail to the admin when' {
                     }
                 }
                 It 'is not supported' {
-                    @{
-                        MailTo = @('bob@contoso.com')
-                        Tasks  = @(
-                            @{
-                                SourceFolderPath           = '\\contoso\folderA'
-                                DestinationFolderPath      = '\\contoso\folderB'
-                                DestinationFolderStructure = 'Year\Month'
-                                OlderThanUnit              = "notSupported"
-                                OlderThanQuantity          = 1
-                            }
-                        )
-                    } | ConvertTo-Json | Out-File @testOutParams
-            
+                    $testNewInputFile = Copy-ObjectHC $testInputFile
+                    $testNewInputFile.Tasks = @(
+                        @{
+                            SourceFolderPath           = '\\contoso\folderA'
+                            DestinationFolderPath      = '\\contoso\folderB'
+                            DestinationFolderStructure = 'Year\Month'
+                            OlderThanUnit              = "notSupported"
+                            OlderThanQuantity          = 1
+                        }
+                    )
+
+                    $testNewInputFile | ConvertTo-Json -Depth 5 |
+                    Out-File @testOutParams
+
                     .$testScript @testParams
-                            
+
                     Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                 (&$MailAdminParams) -and ($Message -like "*$ImportFile*Value 'notSupported' is not supported by 'OlderThanUnit'. Valid options are 'Day', 'Month' or 'Year'*")
                     }
@@ -333,21 +344,14 @@ Describe 'send an e-mail to the admin when' {
             }
             Context 'OlderThanQuantity' {
                 It 'is missing' {
-                    @{
-                        MailTo = @('bob@contoso.com')
-                        Tasks  = @(
-                            @{
-                                SourceFolderPath           = '\\contoso\folderA'
-                                DestinationFolderPath      = '\\contoso\folderB'
-                                DestinationFolderStructure = 'Year\Month'
-                                OlderThanUnit              = 'Month'
-                                # OlderThanQuantity          = 1
-                            }
-                        )
-                    } | ConvertTo-Json | Out-File @testOutParams
-            
+                    $testNewInputFile = Copy-ObjectHC $testInputFile
+                    $testNewInputFile.Tasks[0].Remove("OlderThanQuantity")
+
+                    $testNewInputFile | ConvertTo-Json -Depth 5 |
+                    Out-File @testOutParams
+
                     .$testScript @testParams
-                            
+
                     Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                 (&$MailAdminParams) -and ($Message -like "*$ImportFile*Property 'OlderThanQuantity' not found. Use value number '0' to move all files*")
                     }
@@ -356,21 +360,14 @@ Describe 'send an e-mail to the admin when' {
                     }
                 }
                 It 'is not a number' {
-                    @{
-                        MailTo = @('bob@contoso.com')
-                        Tasks  = @(
-                            @{
-                                SourceFolderPath           = '\\contoso\folderA'
-                                DestinationFolderPath      = '\\contoso\folderB'
-                                DestinationFolderStructure = 'Year\Month'
-                                OlderThanUnit              = 'Month'
-                                OlderThanQuantity          = 'a'
-                            }
-                        )
-                    } | ConvertTo-Json | Out-File @testOutParams
+                    $testNewInputFile = Copy-ObjectHC $testInputFile
+                    $testNewInputFile.Tasks[0].OlderThanQuantity = 'a'
+
+                    $testNewInputFile | ConvertTo-Json -Depth 5 |
+                    Out-File @testOutParams
 
                     .$testScript @testParams
-            
+
                     Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                 (&$MailAdminParams) -and ($Message -like "*$ImportFile*Property 'OlderThanQuantity' needs to be a number, the value 'a' is not supported*")
                     }
@@ -385,22 +382,25 @@ Describe 'send an e-mail to the admin when' {
 Describe 'a file in the source folder' {
     Context 'is not moved when it is created more recently than' {
         BeforeAll {
+            $testNewInputFile = Copy-ObjectHC $testInputFile
+            $testNewInputFile.Tasks = @(
+                @{
+                    ComputerName               = $env:COMPUTERNAME
+                    SourceFolderPath           = $testFolder.Source
+                    DestinationFolderPath      = $testFolder.Destination
+                    DestinationFolderStructure = 'Year\Month'
+                    OlderThanUnit              = 'Day'
+                    OlderThanQuantity          = 3
+                }
+            )
+
             $testFile = (New-Item -Path "$($testFolder.source)\file.txt" -ItemType File).FullName
         }
         It 'Day' {
-            @{
-                MailTo = @('bob@contoso.com')
-                Tasks  = @(
-                    @{
-                        ComputerName               = $env:COMPUTERNAME
-                        SourceFolderPath           = $testFolder.Source
-                        DestinationFolderPath      = $testFolder.Destination
-                        DestinationFolderStructure = 'Year\Month'
-                        OlderThanUnit              = 'Day'
-                        OlderThanQuantity          = 3
-                    }
-                )
-            } | ConvertTo-Json | Out-File @testOutParams
+            $testNewInputFile.Tasks[0].OlderThanUnit = 'Day'
+
+            $testNewInputFile | ConvertTo-Json -Depth 5 |
+            Out-File @testOutParams
 
             Get-Item -Path $testFile | ForEach-Object {
                 $_.CreationTime = (Get-Date).AddDays(-2)
@@ -412,19 +412,10 @@ Describe 'a file in the source folder' {
             Get-ChildItem -Path $testFolder.Destination | Should -HaveCount 0
         }
         It 'Month' {
-            @{
-                MailTo = @('bob@contoso.com')
-                Tasks  = @(
-                    @{
-                        ComputerName               = $env:COMPUTERNAME
-                        SourceFolderPath           = $testFolder.Source
-                        DestinationFolderPath      = $testFolder.Destination
-                        DestinationFolderStructure = 'Year\Month'
-                        OlderThanUnit              = 'Month'
-                        OlderThanQuantity          = 3
-                    }
-                )
-            } | ConvertTo-Json | Out-File @testOutParams
+            $testNewInputFile.Tasks[0].OlderThanUnit = 'Month'
+
+            $testNewInputFile | ConvertTo-Json -Depth 5 |
+            Out-File @testOutParams
 
             Get-Item -Path $testFile | ForEach-Object {
                 $_.CreationTime = (Get-Date).AddMonths(-2)
@@ -436,19 +427,10 @@ Describe 'a file in the source folder' {
             Get-ChildItem -Path $testFolder.Destination | Should -HaveCount 0
         }
         It 'Year' {
-            @{
-                MailTo = @('bob@contoso.com')
-                Tasks  = @(
-                    @{
-                        ComputerName               = $env:COMPUTERNAME
-                        SourceFolderPath           = $testFolder.Source
-                        DestinationFolderPath      = $testFolder.Destination
-                        DestinationFolderStructure = 'Year\Month'
-                        OlderThanUnit              = 'Year'
-                        OlderThanQuantity          = 3
-                    }
-                )
-            } | ConvertTo-Json | Out-File @testOutParams
+            $testNewInputFile.Tasks[0].OlderThanUnit = 'Year'
+
+            $testNewInputFile | ConvertTo-Json -Depth 5 |
+            Out-File @testOutParams
 
             Get-Item -Path $testFile | ForEach-Object {
                 $_.CreationTime = (Get-Date).AddYears(-2)
@@ -461,6 +443,19 @@ Describe 'a file in the source folder' {
         }
     }
     Context 'is moved when it is older than' {
+        BeforeAll {
+            $testNewInputFile = Copy-ObjectHC $testInputFile
+            $testNewInputFile.Tasks = @(
+                @{
+                    ComputerName               = $env:COMPUTERNAME
+                    SourceFolderPath           = $testFolder.Source
+                    DestinationFolderPath      = $testFolder.Destination
+                    DestinationFolderStructure = 'Year\Month'
+                    OlderThanUnit              = 'Day'
+                    OlderThanQuantity          = 3
+                }
+            )
+        }
         BeforeEach {
             @($testFolder.Source, $testFolder.Destination) | ForEach-Object {
                 Remove-Item "$_\*" -Recurse -Force
@@ -468,19 +463,10 @@ Describe 'a file in the source folder' {
             $testFile = (New-Item -Path "$($testFolder.source)\file.txt" -ItemType File).FullName
         }
         It 'Day' {
-            @{
-                MailTo = @('bob@contoso.com')
-                Tasks  = @(
-                    @{
-                        ComputerName               = $env:COMPUTERNAME
-                        SourceFolderPath           = $testFolder.Source
-                        DestinationFolderPath      = $testFolder.Destination
-                        DestinationFolderStructure = 'Year\Month'
-                        OlderThanUnit              = 'Day'
-                        OlderThanQuantity          = 3
-                    }
-                )
-            } | ConvertTo-Json | Out-File @testOutParams
+            $testNewInputFile.Tasks[0].OlderThanUnit = 'Day'
+
+            $testNewInputFile | ConvertTo-Json -Depth 5 |
+            Out-File @testOutParams
 
             Get-Item -Path $testFile | ForEach-Object {
                 $_.CreationTime = (Get-Date).AddDays(-4)
@@ -492,19 +478,10 @@ Describe 'a file in the source folder' {
             Get-ChildItem -Path $testFolder.Destination | Should -HaveCount 1
         }
         It 'Month' {
-            @{
-                MailTo = @('bob@contoso.com')
-                Tasks  = @(
-                    @{
-                        ComputerName               = $env:COMPUTERNAME
-                        SourceFolderPath           = $testFolder.Source
-                        DestinationFolderPath      = $testFolder.Destination
-                        DestinationFolderStructure = 'Year\Month'
-                        OlderThanUnit              = 'Month'
-                        OlderThanQuantity          = 3
-                    }
-                )
-            } | ConvertTo-Json | Out-File @testOutParams
+            $testNewInputFile.Tasks[0].OlderThanUnit = 'Month'
+
+            $testNewInputFile | ConvertTo-Json -Depth 5 |
+            Out-File @testOutParams
 
             Get-Item -Path $testFile | ForEach-Object {
                 $_.CreationTime = (Get-Date).AddMonths(-4)
@@ -516,19 +493,10 @@ Describe 'a file in the source folder' {
             Get-ChildItem -Path $testFolder.Destination | Should -HaveCount 1
         }
         It 'Year' {
-            @{
-                MailTo = @('bob@contoso.com')
-                Tasks  = @(
-                    @{
-                        ComputerName               = $env:COMPUTERNAME
-                        SourceFolderPath           = $testFolder.Source
-                        DestinationFolderPath      = $testFolder.Destination
-                        DestinationFolderStructure = 'Year\Month'
-                        OlderThanUnit              = 'Year'
-                        OlderThanQuantity          = 3
-                    }
-                )
-            } | ConvertTo-Json | Out-File @testOutParams
+            $testNewInputFile.Tasks[0].OlderThanUnit = 'Year'
+
+            $testNewInputFile | ConvertTo-Json -Depth 5 |
+            Out-File @testOutParams
 
             Get-Item -Path $testFile | ForEach-Object {
                 $_.CreationTime = (Get-Date).AddYears(-4)
@@ -541,6 +509,19 @@ Describe 'a file in the source folder' {
         }
     }
     Context 'is moved to a folder with structure' {
+        BeforeAll {
+            $testNewInputFile = Copy-ObjectHC $testInputFile
+            $testNewInputFile.Tasks = @(
+                @{
+                    ComputerName               = $env:COMPUTERNAME
+                    SourceFolderPath           = $testFolder.Source
+                    DestinationFolderPath      = $testFolder.Destination
+                    DestinationFolderStructure = 'Year'
+                    OlderThanUnit              = 'Day'
+                    OlderThanQuantity          = 3
+                }
+            )
+        }
         BeforeEach {
             @($testFolder.Source, $testFolder.Destination) | ForEach-Object {
                 Remove-Item "$_\*" -Recurse -Force
@@ -548,19 +529,10 @@ Describe 'a file in the source folder' {
             $testFile = (New-Item -Path "$($testFolder.source)\file.txt" -ItemType File).FullName
         }
         It 'Year' {
-            @{
-                MailTo = @('bob@contoso.com')
-                Tasks  = @(
-                    @{
-                        ComputerName               = $env:COMPUTERNAME
-                        SourceFolderPath           = $testFolder.Source
-                        DestinationFolderPath      = $testFolder.Destination
-                        DestinationFolderStructure = 'Year'
-                        OlderThanUnit              = 'Day'
-                        OlderThanQuantity          = 3
-                    }
-                )
-            } | ConvertTo-Json | Out-File @testOutParams
+            $testNewInputFile.Tasks[0].DestinationFolderStructure = 'Year'
+
+            $testNewInputFile | ConvertTo-Json -Depth 5 |
+            Out-File @testOutParams
 
             $testFileCreationDate = (Get-Date).AddDays(-4)
 
@@ -577,19 +549,10 @@ Describe 'a file in the source folder' {
             ) | Should -HaveCount 1
         }
         It 'Year-Month' {
-            @{
-                MailTo = @('bob@contoso.com')
-                Tasks  = @(
-                    @{
-                        ComputerName               = $env:COMPUTERNAME
-                        SourceFolderPath           = $testFolder.Source
-                        DestinationFolderPath      = $testFolder.Destination
-                        DestinationFolderStructure = 'Year-Month'
-                        OlderThanUnit              = 'Day'
-                        OlderThanQuantity          = 3
-                    }
-                )
-            } | ConvertTo-Json | Out-File @testOutParams
+            $testNewInputFile.Tasks[0].DestinationFolderStructure = 'Year-Month'
+
+            $testNewInputFile | ConvertTo-Json -Depth 5 |
+            Out-File @testOutParams
 
             $testFileCreationDate = (Get-Date).AddDays(-4)
 
@@ -607,19 +570,10 @@ Describe 'a file in the source folder' {
             ) | Should -HaveCount 1
         }
         It 'Year\Month' {
-            @{
-                MailTo = @('bob@contoso.com')
-                Tasks  = @(
-                    @{
-                        ComputerName               = $env:COMPUTERNAME
-                        SourceFolderPath           = $testFolder.Source
-                        DestinationFolderPath      = $testFolder.Destination
-                        DestinationFolderStructure = 'Year\Month'
-                        OlderThanUnit              = 'Day'
-                        OlderThanQuantity          = 3
-                    }
-                )
-            } | ConvertTo-Json | Out-File @testOutParams
+            $testNewInputFile.Tasks[0].DestinationFolderStructure = 'Year\Month'
+
+            $testNewInputFile | ConvertTo-Json -Depth 5 |
+            Out-File @testOutParams
 
             $testFileCreationDate = (Get-Date).AddDays(-4)
 
@@ -637,19 +591,10 @@ Describe 'a file in the source folder' {
             ) | Should -HaveCount 1
         }
         It 'YYYYMM' {
-            @{
-                MailTo = @('bob@contoso.com')
-                Tasks  = @(
-                    @{
-                        ComputerName               = $env:COMPUTERNAME
-                        SourceFolderPath           = $testFolder.Source
-                        DestinationFolderPath      = $testFolder.Destination
-                        DestinationFolderStructure = 'YYYYMM'
-                        OlderThanUnit              = 'Day'
-                        OlderThanQuantity          = 3
-                    }
-                )
-            } | ConvertTo-Json | Out-File @testOutParams
+            $testNewInputFile.Tasks[0].DestinationFolderStructure = 'YYYYMM'
+
+            $testNewInputFile | ConvertTo-Json -Depth 5 |
+            Out-File @testOutParams
 
             $testFileCreationDate = (Get-Date).AddDays(-4)
 
@@ -666,22 +611,23 @@ Describe 'a file in the source folder' {
             ) | Should -HaveCount 1
         }
     }
-} 
+}
 Describe 'on a successful run' {
     BeforeAll {
-        @{
-            MailTo = @('bob@contoso.com')
-            Tasks  = @(
-                @{
-                    ComputerName               = $env:COMPUTERNAME
-                    SourceFolderPath           = $testFolder.Source
-                    DestinationFolderPath      = $testFolder.Destination
-                    DestinationFolderStructure = 'Year'
-                    OlderThanUnit              = 'Day'
-                    OlderThanQuantity          = 3
-                }
-            )
-        } | ConvertTo-Json | Out-File @testOutParams
+        $testNewInputFile = Copy-ObjectHC $testInputFile
+        $testNewInputFile.Tasks = @(
+            @{
+                ComputerName               = $env:COMPUTERNAME
+                SourceFolderPath           = $testFolder.Source
+                DestinationFolderPath      = $testFolder.Destination
+                DestinationFolderStructure = 'Year'
+                OlderThanUnit              = 'Day'
+                OlderThanQuantity          = 3
+            }
+        )
+
+        $testNewInputFile | ConvertTo-Json -Depth 5 |
+        Out-File @testOutParams
 
         $testFileCreationDate = (Get-Date).AddDays(-4)
 
@@ -724,7 +670,7 @@ Describe 'on a successful run' {
                     $_.SourceFilePath -eq $testRow.SourceFilePath
                 }
                 $actualRow.ComputerName | Should -Be $testRow.ComputerName
-                $actualRow.SourceFileCreationTime.ToString('yyyyMMdd HHmmss') | 
+                $actualRow.SourceFileCreationTime.ToString('yyyyMMdd HHmmss') |
                 Should -Be $testRow.SourceFileCreationTime.ToString('yyyyMMdd HHmmss')
                 $actualRow.DestinationFolderPath | Should -Be $testRow.DestinationFolderPath
                 $actualRow.OlderThan | Should -Be $testRow.OlderThan
@@ -749,5 +695,5 @@ Describe 'on a successful run' {
                 )
             ))
         }
-    } -Tag test
+    }
 }

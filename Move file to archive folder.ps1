@@ -1,17 +1,17 @@
 ﻿#Requires -Version 5.1
 #Requires -Modules Toolbox.EventLog, Toolbox.HTML, Toolbox.Remoting
 
-<# 
-    .SYNOPSIS   
+<#
+    .SYNOPSIS
         Move files based on their creation date to folders where the folder
-        names are based on the file's creation date. 
+        names are based on the file's creation date.
 
     .DESCRIPTION
-        When a file in the source folder is older than x days/months/years 
+        When a file in the source folder is older than x days/months/years
         the file is moved to the destination folder. The name of the destination
         folder is defined by the 'Structure' argument.
-        
-        The file search is non recursive, only files in the root folder are 
+
+        The file search is non recursive, only files in the root folder are
         treated.
 
     .PARAMETER SourceFolderPath
@@ -21,9 +21,9 @@
         Path of the destination folder where the files need be moved too.
 
     .PARAMETER DestinationFolderStructure
-        Name of the folder that needs to be created based on the CreationDate 
-        of the file. 
-        
+        Name of the folder that needs to be created based on the CreationDate
+        of the file.
+
         Valid options:
         - Year-Month  : Parent folder '2022-01'
         - Year\\Month : Parent folder '2022' child folder '01'
@@ -54,7 +54,6 @@ Param (
     [String]$ScriptName,
     [Parameter(Mandatory)]
     [String]$ImportFile,
-    [Int]$MaxConcurrentJobs = 4,
     [String]$LogFolder = "$env:POWERSHELL_LOG_FOLDER\File or folder\Move file to archive folder\$ScriptName",
     [String[]]$ScriptAdmin = @(
         $env:POWERSHELL_SCRIPT_ADMIN,
@@ -63,7 +62,7 @@ Param (
 )
 
 Begin {
-    $scriptBlock = {    
+    $scriptBlock = {
         Param (
             [Parameter(Mandatory)]
             [ValidateScript( { Test-Path $_ -PathType Container })]
@@ -80,10 +79,10 @@ Begin {
             [Parameter(Mandatory)]
             [Int]$Quantity
         )
-    
+
         Begin {
             $Today = Get-Date
-    
+
             #region Create filter
             Switch ($OlderThan) {
                 'Day' {
@@ -125,7 +124,7 @@ Begin {
             }
             #endregion
         }
-    
+
         Process {
             Get-ChildItem $Source -File | Select-FileHC | ForEach-Object {
                 $file = $_
@@ -143,22 +142,22 @@ Begin {
                     )
                     Error                  = $null
                 }
-    
+
                 $childPath = Switch ($Structure) {
-                    'Year' { 
-                        [String]$file.CreationTime.Year 
+                    'Year' {
+                        [String]$file.CreationTime.Year
                         break
                     }
-                    'Year\Month' { 
-                        [String]$file.CreationTime.Year + '\' + $file.CreationTime.ToString('MM') 
+                    'Year\Month' {
+                        [String]$file.CreationTime.Year + '\' + $file.CreationTime.ToString('MM')
                         break
                     }
-                    'Year-Month' { 
-                        [String]$file.CreationTime.Year + '-' + $file.CreationTime.ToString('MM') 
+                    'Year-Month' {
+                        [String]$file.CreationTime.Year + '-' + $file.CreationTime.ToString('MM')
                         break
                     }
-                    'YYYYMM' { 
-                        [String]$file.CreationTime.Year + $file.CreationTime.ToString('MM') 
+                    'YYYYMM' {
+                        [String]$file.CreationTime.Year + $file.CreationTime.ToString('MM')
                         break
                     }
                     Default {
@@ -171,7 +170,7 @@ Begin {
                     ChildPath = $childPath
                 }
                 $result.DestinationFolderPath = Join-Path @joinParams
-    
+
                 Try {
                     $newParams = @{
                         Path        = $result.DestinationFolderPath
@@ -241,6 +240,17 @@ Begin {
         if (-not ($MailTo = $file.MailTo)) {
             throw "Input file '$ImportFile': No 'MailTo' addresses found."
         }
+
+        if (-not ($MaxConcurrentJobs = $file.MaxConcurrentJobs)) {
+            throw "Property 'MaxConcurrentJobs' not found"
+        }
+        try {
+            $null = $MaxConcurrentJobs.ToInt16($null)
+        }
+        catch {
+            throw "Property 'MaxConcurrentJobs' needs to be a number, the value '$MaxConcurrentJobs' is not supported."
+        }
+
         if (-not ($Tasks = $file.Tasks)) {
             throw "Input file '$ImportFile': No 'Tasks' found."
         }
@@ -281,14 +291,18 @@ Begin {
             if ($task.PSObject.Properties.Name -notContains 'OlderThanQuantity') {
                 throw "Input file '$ImportFile' SourceFolderPath '$($task.SourceFolderPath)': Property 'OlderThanQuantity' not found. Use value number '0' to move all files."
             }
-            if (-not ($task.OlderThanQuantity -is [int])) {
+
+            try {
+                $null = [int]$task.OlderThanQuantity
+            }
+            catch {
                 throw "Input file '$ImportFile' SourceFolderPath '$($task.SourceFolderPath)': Property 'OlderThanQuantity' needs to be a number, the value '$($task.OlderThanQuantity)' is not supported. Use value number '0' to move all files."
             }
             #endregion
 
             #region ComputerName and non UNC path
             if (
-                $task.ComputerName -and 
+                $task.ComputerName -and
                 (
                     ($task.SourceFolderPath -Match '^\\\\') -or
                     ($task.DestinationFolderPath -Match '^\\\\')
@@ -300,7 +314,7 @@ Begin {
 
             #region Local paths without ComputerName
             if (
-                (-not $task.ComputerName) -and 
+                (-not $task.ComputerName) -and
                 (
                     ($task.SourceFolderPath -notMatch '^\\\\') -or
                     ($task.DestinationFolderPath -NotMatch '^\\\\')
@@ -328,19 +342,19 @@ Process {
         foreach ($task in $Tasks) {
             $invokeParams = @{
                 ScriptBlock  = $scriptBlock
-                ArgumentList = $task.SourceFolderPath, 
-                $task.DestinationFolderPath, 
-                $task.DestinationFolderStructure, 
-                $task.OlderThanUnit, 
+                ArgumentList = $task.SourceFolderPath,
+                $task.DestinationFolderPath,
+                $task.DestinationFolderStructure,
+                $task.OlderThanUnit,
                 $task.OlderThanQuantity
             }
 
             $M = "Start job on '{0}' with SourceFolderPath '{1}' DestinationFolderPath '{2}' DestinationFolderStructure '{3}' OlderThanUnit '{4}' OlderThanQuantity '{5}'" -f $env:COMPUTERNAME,
             $invokeParams.ArgumentList[0], $invokeParams.ArgumentList[1],
-            $invokeParams.ArgumentList[2], $invokeParams.ArgumentList[3], 
+            $invokeParams.ArgumentList[2], $invokeParams.ArgumentList[3],
             $invokeParams.ArgumentList[4]
             Write-Verbose $M; Write-EventLog @EventVerboseParams -Message $M
-            
+
             $addParams = @{
                 NotePropertyMembers = @{
                     Job        = $null
@@ -358,7 +372,7 @@ Process {
             else {
                 Start-Job @invokeParams
             }
-            
+
             $waitParams = @{
                 Name       = $Tasks.Job | Where-Object { $_ }
                 MaxThreads = $MaxConcurrentJobs
@@ -387,9 +401,9 @@ Process {
                 $task.JobErrors += $e.ToString()
                 $Error.Remove($e)
 
-                $M = "Task error on '{0}' with SourceFolderPath '{1}' DestinationFolderPath '{2}' DestinationFolderStructure '{3}' OlderThanUnit '{4}' OlderThanQuantity '{5}': {6}" -f 
-                $task.Job.Location, $task.SourceFolderPath, 
-                $task.DestinationFolderPath, $task.DestinationFolderStructure, 
+                $M = "Task error on '{0}' with SourceFolderPath '{1}' DestinationFolderPath '{2}' DestinationFolderStructure '{3}' OlderThanUnit '{4}' OlderThanQuantity '{5}': {6}" -f
+                $task.Job.Location, $task.SourceFolderPath,
+                $task.DestinationFolderPath, $task.DestinationFolderStructure,
                 $task.OlderThanUnit, $task.OlderThanQuantity, $e.ToString()
                 Write-Verbose $M; Write-EventLog @EventErrorParams -Message $M
             }
@@ -400,7 +414,7 @@ Process {
         if ($jobResults = $Tasks.JobResults | Where-Object { $_ }) {
             $M = "Export $($jobResults.Count) rows to Excel"
             Write-Verbose $M; Write-EventLog @EventOutParams -Message $M
-            
+
             $excelParams = @{
                 Path               = $logFile + '- Log.xlsx'
                 WorksheetName      = 'Overview'
@@ -409,9 +423,9 @@ Process {
                 AutoSize           = $true
                 FreezeTopRow       = $true
             }
-            $jobResults | 
+            $jobResults |
             Select-Object -Property * -ExcludeProperty 'PSComputerName',
-            'RunSpaceId', 'PSShowComputerName' | 
+            'RunSpaceId', 'PSShowComputerName' |
             Export-Excel @excelParams
 
             $mailParams.Attachments = $excelParams.Path
@@ -433,8 +447,8 @@ End {
         #region Count results, errors, ...
         $counter = @{
             movedFiles      = (
-                $jobResults | 
-                Where-Object { $_.Action -like 'File moved*' } | 
+                $jobResults |
+                Where-Object { $_.Action -like 'File moved*' } |
                 Measure-Object
             ).Count
             moveFilesErrors = ($jobResults.Error | Measure-Object).Count
@@ -451,7 +465,7 @@ End {
         )
 
         if (
-            $totalErrorCount = $counter.moveFilesErrors + $counter.jobErrors + 
+            $totalErrorCount = $counter.moveFilesErrors + $counter.jobErrors +
             $counter.systemErrors
         ) {
             $mailParams.Priority = 'High'
@@ -463,21 +477,21 @@ End {
 
         #region Create html lists
         $systemErrorsHtmlList = if ($counter.systemErrors) {
-            "<p>Detected <b>{0} non terminating error{1}</b>:{2}</p>" -f $counter.systemErrors, 
+            "<p>Detected <b>{0} non terminating error{1}</b>:{2}</p>" -f $counter.systemErrors,
             $(
                 if ($counter.systemErrors -gt 1) { 's' }
             ),
             $(
-                $Error.Exception.Message | Where-Object { $_ } | 
+                $Error.Exception.Message | Where-Object { $_ } |
                 ConvertTo-HtmlListHC
             )
         }
 
         $jobResultsHtmlListItems = foreach (
-            $task in 
+            $task in
             $Tasks | Sort-Object -Property 'SourceFolderPath'
         ) {
-            'From: {0}<br>To: {1}<br>{2}<br>Moved: {3}{4}{5}' -f 
+            'From: {0}<br>To: {1}<br>{2}<br>Moved: {3}{4}{5}' -f
             $(
                 if ($task.SourceFolderPath -match '^\\\\') {
                     '<a href="{0}">{0}</a>' -f $task.SourceFolderPath
@@ -488,7 +502,7 @@ End {
                     )
                     '<a href="{0}">{0}</a>' -f $uncPath
                 }
-            ), 
+            ),
             $(
                 if ($task.DestinationFolderPath -match '^\\\\') {
                     '<a href="{0}">{0}</a>' -f $task.DestinationFolderPath
@@ -499,13 +513,13 @@ End {
                     )
                     '<a href="{0}">{0}</a>' -f $uncPath
                 }
-            ), 
+            ),
             $(
                 if ($task.OlderThanQuantity -eq 0) {
                     'Move all files regardless their creation date'
                 }
                 else {
-                    'Move files older than {0} {1}{2}' -f 
+                    'Move files older than {0} {1}{2}' -f
                     $task.OlderThanQuantity,
                     $(
                         $task.OlderThanUnit.ToLower()
@@ -514,18 +528,18 @@ End {
                         if ($task.OlderThanQuantity -gt 1) { 's' }
                     )
                 }
-            ), 
+            ),
             $(
                 (
-                    $task.JobResults | 
-                    Where-Object { $_.Action -like 'File moved*' } | 
+                    $task.JobResults |
+                    Where-Object { $_.Action -like 'File moved*' } |
                     Measure-Object
                 ).Count
             ),
             $(
                 if ($errorCount = (
-                        $task.JobResults | 
-                        Where-Object { $_.Error } | 
+                        $task.JobResults |
+                        Where-Object { $_.Error } |
                         Measure-Object
                     ).Count + $task.JobErrors.Count) {
                     ', <b style="color:red;">errors: {0}</b>' -f $errorCount
@@ -539,11 +553,11 @@ End {
                 }
             )
         }
-   
-        $jobResultsHtmlList = $jobResultsHtmlListItems | 
+
+        $jobResultsHtmlList = $jobResultsHtmlListItems |
         ConvertTo-HtmlListHC -Spacing Wide
         #endregion
-        
+
         $mailParams += @{
             To        = $MailTo
             Bcc       = $ScriptAdmin
@@ -557,10 +571,10 @@ End {
         }
 
         if ($mailParams.Attachments) {
-            $mailParams.Message += 
+            $mailParams.Message +=
             "<p><i>* Check the attachment for details</i></p>"
         }
-   
+
         Get-ScriptRuntimeHC -Stop
         Send-MailHC @mailParams
         #endregion

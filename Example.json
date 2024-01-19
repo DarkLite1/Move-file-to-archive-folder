@@ -1,5 +1,6 @@
 {
   "MailTo": ["bob@constoso.com"],
+  "MaxConcurrentJobs": 4,
   "Tasks": [
     {
       "ComputerName": "PC1",
