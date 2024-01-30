@@ -1,4 +1,5 @@
 ﻿#Requires -Version 5.1
+#Requires -Modules ImportExcel
 #Requires -Modules Toolbox.EventLog, Toolbox.HTML, Toolbox.Remoting
 
 <#
@@ -329,6 +330,15 @@ Process {
     Try {
         #region Start jobs to move files to archive folder
         foreach ($task in $Tasks) {
+            $task | Add-Member -NotePropertyMembers @{
+                Job     = @{
+                    Object  = $null
+                    Results = @()
+                    Errors  = @()
+                }
+                Session = $null
+            }
+
             $invokeParams = @{
                 ScriptBlock  = $scriptBlock
                 ArgumentList = $task.SourceFolderPath,
@@ -344,56 +354,72 @@ Process {
             $invokeParams.ArgumentList[4]
             Write-Verbose $M; Write-EventLog @EventVerboseParams -Message $M
 
-            $addParams = @{
-                NotePropertyMembers = @{
-                    Job        = $null
-                    JobResults = @()
-                    JobErrors  = @()
-                }
-            }
-            $task | Add-Member @addParams
+            #region Start job
+            $computerName = $task.ComputerName
 
-            $task.Job = if (
-                $task.ComputerName -eq $ENV:COMPUTERNAME
+            $task.Job.Object = if (
+                $computerName -eq $ENV:COMPUTERNAME
             ) {
                 Start-Job @invokeParams
             }
             else {
-                $invokeParams.ComputerName = $task.ComputerName
-                $invokeParams.AsJob = $true
-                Invoke-Command @invokeParams
+                try {
+                    $task.Session = New-PSSessionHC -ComputerName $computerName
+                    $invokeParams += @{
+                        Session = $task.Session
+                        AsJob   = $true
+                    }
+                    Invoke-Command @invokeParams
+                }
+                catch {
+                    Write-Warning "Failed creating a session to '$computerName': $_"
+                    Continue
+                }
             }
+            #endregion
 
-            $waitParams = @{
-                Name       = $Tasks.Job | Where-Object { $_ }
+            #region Wait for max running jobs
+            $waitJobParams = @{
+                Job        = $Tasks.Job.Object | Where-Object { $_ }
                 MaxThreads = $MaxConcurrentJobs
             }
-            Wait-MaxRunningJobsHC @waitParams
+
+            if ($waitJobParams.Job) {
+                Wait-MaxRunningJobsHC @waitJobParams
+            }
+            #endregion
         }
         #endregion
 
-        #region Wait for jobs to finish
-        $M = "Wait for all $($Tasks.count) jobs to finish"
-        Write-Verbose $M; Write-EventLog @EventOutParams -Message $M
+        #region Wait for all jobs to finish
+        $waitJobParams = @{
+            Job = $Tasks.Job.Object | Where-Object { $_ }
+        }
+        if ($waitJobParams.Job) {
+            Write-Verbose 'Wait for all jobs to finish'
 
-        $null = $Tasks.Job | Wait-Job
+            $null = Wait-Job @waitJobParams
+        }
         #endregion
 
         #region Get job results and job errors
-        foreach ($task in $Tasks) {
+        foreach (
+            $task in
+            $Tasks | Where-Object { $_.Job.Object }
+        ) {
             $jobErrors = @()
             $receiveParams = @{
                 ErrorVariable = 'jobErrors'
                 ErrorAction   = 'SilentlyContinue'
             }
-            $task.JobResults += $task.Job | Receive-Job @receiveParams
+            $task.Job.Results += $task.Job.Object | Receive-Job @receiveParams
 
             foreach ($e in $jobErrors) {
-                $task.JobErrors += $e.ToString()
+                $task.Job.Errors += $e.ToString()
                 $Error.Remove($e)
 
                 $M = "Task error on '{0}' with SourceFolderPath '{1}' DestinationFolderPath '{2}' DestinationFolderStructure '{3}' OlderThanUnit '{4}' OlderThanQuantity '{5}': {6}" -f
-                $task.Job.Location, $task.SourceFolderPath,
+                $task.Job.Object.Location, $task.SourceFolderPath,
                 $task.DestinationFolderPath, $task.DestinationFolderStructure,
                 $task.OlderThanUnit, $task.OlderThanQuantity, $e.ToString()
                 Write-Verbose $M; Write-EventLog @EventErrorParams -Message $M
@@ -402,7 +428,7 @@ Process {
         #endregion
 
         #region Export job results to Excel file
-        if ($jobResults = $Tasks.JobResults | Where-Object { $_ }) {
+        if ($jobResults = $Tasks.Job.Results | Where-Object { $_ }) {
             $M = "Export $($jobResults.Count) rows to Excel"
             Write-Verbose $M; Write-EventLog @EventOutParams -Message $M
 
@@ -443,7 +469,7 @@ End {
                 Measure-Object
             ).Count
             moveFilesErrors = ($jobResults.Error | Measure-Object).Count
-            jobErrors       = ($Tasks.jobErrors | Measure-Object).Count
+            jobErrors       = ($Tasks.job.Errors | Measure-Object).Count
             systemErrors    = ($Error.Exception.Message | Measure-Object).Count
         }
         #endregion
@@ -522,23 +548,23 @@ End {
             ),
             $(
                 (
-                    $task.JobResults |
+                    $task.Job.Results |
                     Where-Object { $_.Action -like 'File moved*' } |
                     Measure-Object
                 ).Count
             ),
             $(
                 if ($errorCount = (
-                        $task.JobResults |
+                        $task.Job.Results |
                         Where-Object { $_.Error } |
                         Measure-Object
-                    ).Count + $task.JobErrors.Count) {
+                    ).Count + $task.Job.Errors.Count) {
                     ', <b style="color:red;">errors: {0}</b>' -f $errorCount
                 }
             ),
             $(
-                if ($task.JobErrors) {
-                    $task.JobErrors | ForEach-Object {
+                if ($task.Job.Errors) {
+                    $task.Job.Errors | ForEach-Object {
                         '<br><b style="color:red;">{0}</b>' -f $_
                     }
                 }
