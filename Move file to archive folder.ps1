@@ -299,28 +299,17 @@ Begin {
                 throw "Input file '$ImportFile' SourceFolderPath '$($task.SourceFolderPath)': Property 'OlderThanQuantity' needs to be a number, the value '$($task.OlderThanQuantity)' is not supported. Use value number '0' to move all files."
             }
             #endregion
+        }
+        #endregion
 
-            #region ComputerName and non UNC path
+        foreach ($task in $Tasks) {
+            #region Set ComputerName if there is none
             if (
-                $task.ComputerName -and
-                (
-                    ($task.SourceFolderPath -Match '^\\\\') -or
-                    ($task.DestinationFolderPath -Match '^\\\\')
-                )
+            (-not $task.ComputerName) -or
+            ($task.ComputerName -eq 'localhost') -or
+            ($task.ComputerName -eq "$ENV:COMPUTERNAME.$env:USERDNSDOMAIN")
             ) {
-                throw "Input file '$ImportFile' with ComputerName '$($task.ComputerName)' SourceFolderPath '$($task.SourceFolderPath)' and DestinationFolderPath '$($task.DestinationFolderPath)': When ComputerName is used only local paths are allowed (to avoid the double hop issue)."
-            }
-            #endregion
-
-            #region Local paths without ComputerName
-            if (
-                (-not $task.ComputerName) -and
-                (
-                    ($task.SourceFolderPath -notMatch '^\\\\') -or
-                    ($task.DestinationFolderPath -NotMatch '^\\\\')
-                )
-            ) {
-                throw "Input file '$ImportFile' with ComputerName '$($task.ComputerName)' SourceFolderPath '$($task.SourceFolderPath)' and DestinationFolderPath '$($task.DestinationFolderPath)': When local paths are used the ComputerName is mandatory."
+                $task.ComputerName = $env:COMPUTERNAME
             }
             #endregion
         }
@@ -364,13 +353,15 @@ Process {
             }
             $task | Add-Member @addParams
 
-            $task.Job = if ($task.ComputerName) {
+            $task.Job = if (
+                $task.ComputerName -eq $ENV:COMPUTERNAME
+            ) {
+                Start-Job @invokeParams
+            }
+            else {
                 $invokeParams.ComputerName = $task.ComputerName
                 $invokeParams.AsJob = $true
                 Invoke-Command @invokeParams
-            }
-            else {
-                Start-Job @invokeParams
             }
 
             $waitParams = @{
