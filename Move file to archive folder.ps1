@@ -313,6 +313,17 @@ Begin {
                 $task.ComputerName = $env:COMPUTERNAME
             }
             #endregion
+
+            #region Add properties
+            $task | Add-Member -NotePropertyMembers @{
+                Job     = @{
+                    Object  = $null
+                    Results = @()
+                    Errors  = @()
+                }
+                Session = $null
+            }
+            #endregion
         }
         #endregion
 
@@ -330,15 +341,6 @@ Process {
     Try {
         #region Start jobs to move files to archive folder
         foreach ($task in $Tasks) {
-            $task | Add-Member -NotePropertyMembers @{
-                Job     = @{
-                    Object  = $null
-                    Results = @()
-                    Errors  = @()
-                }
-                Session = $null
-            }
-
             $invokeParams = @{
                 ScriptBlock  = $scriptBlock
                 ArgumentList = $task.SourceFolderPath,
@@ -424,6 +426,8 @@ Process {
                 $task.OlderThanUnit, $task.OlderThanQuantity, $e.ToString()
                 Write-Verbose $M; Write-EventLog @EventErrorParams -Message $M
             }
+
+            $task.Session | Remove-PSSession -ErrorAction Ignore
         }
         #endregion
 
