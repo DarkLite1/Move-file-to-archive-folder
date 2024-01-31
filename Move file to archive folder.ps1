@@ -422,7 +422,7 @@ Process {
                 $Error.Remove($e)
 
                 $M = "Task error on '{0}' with SourceFolderPath '{1}' DestinationFolderPath '{2}' DestinationFolderStructure '{3}' OlderThanUnit '{4}' OlderThanQuantity '{5}': {6}" -f
-                $task.Job.Object.Location, $task.SourceFolderPath,
+                $task.ComputerName, $task.SourceFolderPath,
                 $task.DestinationFolderPath, $task.DestinationFolderStructure,
                 $task.OlderThanUnit, $task.OlderThanQuantity, $e.ToString()
                 Write-Verbose $M; Write-EventLog @EventErrorParams -Message $M
@@ -498,6 +498,7 @@ End {
         #endregion
 
         #region Create html lists
+        #region System errors HTML list
         $systemErrorsHtmlList = if ($counter.systemErrors) {
             "<p>Detected <b>{0} non terminating error{1}</b>:{2}</p>" -f $counter.systemErrors,
             $(
@@ -508,7 +509,9 @@ End {
                 ConvertTo-HtmlListHC
             )
         }
+        #endregion
 
+        #region Job results HTML list
         $jobResultsHtmlListItems = foreach (
             $task in
             $Tasks | Sort-Object -Property 'SourceFolderPath'
@@ -580,11 +583,33 @@ End {
         ConvertTo-HtmlListHC -Spacing Wide
         #endregion
 
+        #region Job errors HTML list
+        $jobErrorsHtmlList = if ($counter.jobErrors) {
+            $errorList = foreach (
+                $task in
+                $Tasks | Where-Object { $_.Job.Errors }
+            ) {
+                foreach ($e in $task.Job.Errors) {
+                    "Failed task with ComputerName '{0}' with SourceFolderPath '{1}' DestinationFolderPath '{2}' DestinationFolderStructure '{3}' OlderThanUnit '{4}' OlderThanQuantity '{5}': {6}" -f
+                    $task.ComputerName, $task.SourceFolderPath,
+                    $task.DestinationFolderPath,
+                    $task.DestinationFolderStructure,
+                    $task.OlderThanUnit, $task.OlderThanQuantity, $e
+                }
+            }
+
+            $errorList |
+            ConvertTo-HtmlListHC -Spacing Wide -Header 'Job errors:'
+        }
+        #endregion
+        #endregion
+
         $mailParams += @{
             To        = $MailTo
             Bcc       = $ScriptAdmin
             Message   = "
                 $systemErrorsHtmlList
+                $jobErrorsHtmlList
                 <p>Summary:</p>
                 $jobResultsHtmlList"
             LogFolder = $LogParams.LogFolder
