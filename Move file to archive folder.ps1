@@ -45,6 +45,10 @@
     .PARAMETER OlderThanQuantity
         A number to be used in combination with OlderThanUnit
 
+    .PARAMETER PSSessionConfiguration
+        The version of PowerShell on the remote endpoint as returned by
+        Get-PSSessionConfiguration.
+
     .EXAMPLE
         See Example.json
 #>
@@ -55,6 +59,7 @@ Param (
     [String]$ScriptName,
     [Parameter(Mandatory)]
     [String]$ImportFile,
+    [String]$PSSessionConfiguration = 'PowerShell.7',
     [String]$LogFolder = "$env:POWERSHELL_LOG_FOLDER\File or folder\Move file to archive folder\$ScriptName",
     [String[]]$ScriptAdmin = @(
         $env:POWERSHELL_SCRIPT_ADMIN,
@@ -365,24 +370,12 @@ Process {
                 Start-Job @invokeParams
             }
             else {
-                try {
-                    $getEndpointParams = @{
-                        ComputerName = $computerName
-                        ScriptName   = $ScriptName
-                        ErrorAction  = 'Stop'
-                    }
-
-                    $invokeParams += @{
-                        ConfigurationName = Get-PowerShellConnectableEndpointNameHC @getEndpointParams
-                        ComputerName      = $computerName
-                        AsJob             = $true
-                    }
-                    Invoke-Command @invokeParams
+                $invokeParams += @{
+                    ConfigurationName = $PSSessionConfiguration
+                    ComputerName      = $computerName
+                    AsJob             = $true
                 }
-                catch {
-                    Write-Warning "Failed connecting to '$computerName': $_"
-                    Continue
-                }
+                Invoke-Command @invokeParams
             }
             #endregion
 
@@ -391,30 +384,19 @@ Process {
                 Job        = $Tasks.Job.Object | Where-Object { $_ }
                 MaxThreads = $MaxConcurrentJobs
             }
-
-            if ($waitJobParams.Job) {
-                Wait-MaxRunningJobsHC @waitJobParams
-            }
+            Wait-MaxRunningJobsHC @waitJobParams
             #endregion
         }
         #endregion
 
         #region Wait for all jobs to finish
-        $waitJobParams = @{
-            Job = $Tasks.Job.Object | Where-Object { $_ }
-        }
-        if ($waitJobParams.Job) {
-            Write-Verbose 'Wait for all jobs to finish'
+        Write-Verbose 'Wait for all jobs to finish'
 
-            $null = Wait-Job @waitJobParams
-        }
+        $null = $Tasks.Job.Object | Wait-Job
         #endregion
 
         #region Get job results and job errors
-        foreach (
-            $task in
-            $Tasks | Where-Object { $_.Job.Object }
-        ) {
+        foreach ($task in $Tasks) {
             $jobErrors = @()
             $receiveParams = @{
                 ErrorVariable = 'jobErrors'
