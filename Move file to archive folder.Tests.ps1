@@ -12,9 +12,10 @@ BeforeAll {
         MaxConcurrentJobs = 5
         Tasks             = @(
             @{
-                SourceFolder = '\\contoso\folderA'
+                ComputerName = $env:COMPUTERNAME
+                SourceFolder = $testFolder.Source
                 Destination  = @{
-                    Folder      = '\\contoso\folderB'
+                    Folder      = $testFolder.Destination
                     ChildFolder = 'Year\Month'
                 }
                 OlderThan    = @{
@@ -423,12 +424,9 @@ Describe 'a file in the source folder' {
             Get-ChildItem -Path $testFolder.Destination | Should -HaveCount 0
         }
     }
-    Context 'is moved when it is older than' {
+    Context 'is moved when it is OlderThan' {
         BeforeAll {
             $testNewInputFile = Copy-ObjectHC $testInputFile
-            $testNewInputFile.Tasks[0].ComputerName = $env:COMPUTERNAME
-            $testNewInputFile.Tasks[0].SourceFolder = $testFolder.Source
-            $testNewInputFile.Tasks[0].Destination.Folder = $testFolder.Destination
             $testNewInputFile.Tasks[0].OlderThan.Quantity = 3
         }
         BeforeEach {
@@ -483,12 +481,9 @@ Describe 'a file in the source folder' {
             Get-ChildItem -Path $testFolder.Destination | Should -HaveCount 1
         }
     }
-    Context 'is moved to a folder with structure' {
+    Context 'is moved to the Destination.ChildFolder' {
         BeforeAll {
             $testNewInputFile = Copy-ObjectHC $testInputFile
-            $testNewInputFile.Tasks[0].ComputerName = $env:COMPUTERNAME
-            $testNewInputFile.Tasks[0].SourceFolder = $testFolder.Source
-            $testNewInputFile.Tasks[0].Destination.Folder = $testFolder.Destination
             $testNewInputFile.Tasks[0].OlderThan.Quantity = 3
             $testNewInputFile.Tasks[0].OlderThan.Unit = 'Day'
         }
@@ -585,9 +580,6 @@ Describe 'a file in the source folder' {
 Describe 'on a successful run' {
     BeforeAll {
         $testNewInputFile = Copy-ObjectHC $testInputFile
-        $testNewInputFile.Tasks[0].ComputerName = $env:COMPUTERNAME
-        $testNewInputFile.Tasks[0].SourceFolder = $testFolder.Source
-        $testNewInputFile.Tasks[0].Destination.Folder = $testFolder.Destination
         $testNewInputFile.Tasks[0].Destination.ChildFolder = 'Year'
         $testNewInputFile.Tasks[0].OlderThan.Quantity = 3
         $testNewInputFile.Tasks[0].OlderThan.Unit = 'Day'
