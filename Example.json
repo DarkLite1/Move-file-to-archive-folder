@@ -13,9 +13,13 @@
         "Quantity": 1,
         "Unit": "Day"
       },
+      "Option": {
+        "DuplicateFile": "OverwriteFile"
+      },
       "?": {
         "Destination.ChildFolder": "Year-Month | Year\\Month | Year | YYYYMM",
-        "OlderThan.Unit": "Day | Month | Year"
+        "OlderThan.Unit": "Day | Month | Year",
+        "Option.DuplicateFile": "NULL | OverwriteFile | RenameFile"
       }
     },
     {
@@ -29,7 +33,10 @@
         "Quantity": 1,
         "Unit": "Year"
       },
-      "?": "Move files older than 1 year to folder '2022'"
+      "Option": {
+        "DuplicateFile": null
+      },
+      "?": "Move files older than 1 year to folder 'folderB\\2022' and do not overwrite duplicate files"
     }
   ]
 }

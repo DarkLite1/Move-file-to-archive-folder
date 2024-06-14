@@ -128,82 +128,84 @@ Describe 'send an e-mail to the admin when' {
                     $EntryType -eq 'Error'
                 }
             }
-            It 'Destination.Folder is missing' {
-                $testNewInputFile = Copy-ObjectHC $testInputFile
-                $testNewInputFile.Tasks[0].Destination.Folder = $null
+            Context 'Destination' {
+                It 'Destination.Folder is missing' {
+                    $testNewInputFile = Copy-ObjectHC $testInputFile
+                    $testNewInputFile.Tasks[0].Destination.Folder = $null
 
-                $testNewInputFile | ConvertTo-Json -Depth 5 |
-                Out-File @testOutParams
+                    $testNewInputFile | ConvertTo-Json -Depth 5 |
+                    Out-File @testOutParams
 
-                .$testScript @testParams
+                    .$testScript @testParams
 
-                Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
+                    Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                     (&$MailAdminParams) -and ($Message -like "*$ImportFile*No 'Destination.Folder' found*")
+                    }
+                    Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
+                        $EntryType -eq 'Error'
+                    }
                 }
-                Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                    $EntryType -eq 'Error'
-                }
-            }
-            Context 'Destination.ChildFolder' {
-                It 'is missing' {
-                    $testNewInputFile = Copy-ObjectHC $testInputFile
-                    $testNewInputFile.Tasks = @(
-                        @{
-                            SourceFolder = '\\contoso\folderA'
-                            Destination  = @{
-                                Folder = '\\contoso\folderB'
-                                # ChildFolder = "Year\\Month"
+                Context 'Destination.ChildFolder' {
+                    It 'is missing' {
+                        $testNewInputFile = Copy-ObjectHC $testInputFile
+                        $testNewInputFile.Tasks = @(
+                            @{
+                                SourceFolder = '\\contoso\folderA'
+                                Destination  = @{
+                                    Folder = '\\contoso\folderB'
+                                    # ChildFolder = "Year\\Month"
+                                }
+                                OlderThan    = @{
+                                    Quantity = 1
+                                    Unit     = 'Month'
+                                }
                             }
-                            OlderThan    = @{
-                                Quantity = 1
-                                Unit     = 'Month'
-                            }
-                        }
-                    )
+                        )
 
-                    $testNewInputFile | ConvertTo-Json -Depth 5 |
-                    Out-File @testOutParams
+                        $testNewInputFile | ConvertTo-Json -Depth 5 |
+                        Out-File @testOutParams
 
-                    .$testScript @testParams
+                        .$testScript @testParams
 
-                    Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
+                        Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                     (&$MailAdminParams) -and ($Message -like "*$ImportFile*No 'Destination.ChildFolder' found*")
-                    }
-                    Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                        $EntryType -eq 'Error'
-                    }
-                }
-                It 'is not supported' {
-                    $testNewInputFile = Copy-ObjectHC $testInputFile
-                    $testNewInputFile.Tasks = @(
-                        @{
-                            SourceFolder = '\\contoso\folderA'
-                            Destination  = @{
-                                Folder      = '\\contoso\folderB'
-                                ChildFolder = 'Wrong'
-                            }
-                            OlderThan    = @{
-                                Quantity = 1
-                                Unit     = 'Month'
-                            }
                         }
-                    )
-
-                    $testNewInputFile | ConvertTo-Json -Depth 5 |
-                    Out-File @testOutParams
-
-                    .$testScript @testParams
-
-                    Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                    (&$MailAdminParams) -and ($Message -like "*$ImportFile*Value 'wrong' is not supported by 'Destination.ChildFolder'. Valid options are 'Year-Month', 'Year\Month', 'Year' or 'YYYYMM'.*")
+                        Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
+                            $EntryType -eq 'Error'
+                        }
                     }
-                    Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                        $EntryType -eq 'Error'
+                    It 'is not supported' {
+                        $testNewInputFile = Copy-ObjectHC $testInputFile
+                        $testNewInputFile.Tasks = @(
+                            @{
+                                SourceFolder = '\\contoso\folderA'
+                                Destination  = @{
+                                    Folder      = '\\contoso\folderB'
+                                    ChildFolder = 'Wrong'
+                                }
+                                OlderThan    = @{
+                                    Quantity = 1
+                                    Unit     = 'Month'
+                                }
+                            }
+                        )
+
+                        $testNewInputFile | ConvertTo-Json -Depth 5 |
+                        Out-File @testOutParams
+
+                        .$testScript @testParams
+
+                        Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
+                    (&$MailAdminParams) -and ($Message -like "*$ImportFile*Value 'wrong' is not supported by 'Destination.ChildFolder'. Valid options are 'Year-Month', 'Year\Month', 'Year' or 'YYYYMM'.*")
+                        }
+                        Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
+                            $EntryType -eq 'Error'
+                        }
                     }
                 }
             }
             Context 'OlderThan' {
-                Context 'Unit' {
+                Context 'OlderThan.Unit' {
                     It 'is missing' {
                         $testNewInputFile = Copy-ObjectHC $testInputFile
                         $testNewInputFile.Tasks = @(
@@ -261,7 +263,7 @@ Describe 'send an e-mail to the admin when' {
                         }
                     }
                 }
-                Context 'Quantity' {
+                Context 'OlderThan.Quantity' {
                     It 'is missing' {
                         $testNewInputFile = Copy-ObjectHC $testInputFile
                         $testNewInputFile.Tasks[0].OlderThan.Remove("Quantity")
