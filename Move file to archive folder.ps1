@@ -283,7 +283,7 @@ Begin {
             }
             #endregion
 
-            #region OlderThan.Unit
+            #region OlderThan
             if (-not $task.OlderThan.Unit) {
                 throw "Input file '$ImportFile': No 'OlderThan.Unit' found in one of the 'Tasks'."
             }
@@ -291,9 +291,7 @@ Begin {
             if ($task.OlderThan.Unit -notMatch '^Day$|^Month$|^Year$') {
                 throw "Input file '$ImportFile': Value '$($task.OlderThan.Unit)' is not supported by 'OlderThan.Unit'. Valid options are 'Day', 'Month' or 'Year'."
             }
-            #endregion
 
-            #region OlderThan.Quantity
             if ($task.PSObject.Properties.Name -notContains 'OlderThan') {
                 throw "Input file '$ImportFile' SourceFolder '$($task.SourceFolder)': Property 'OlderThan' with 'Quantity' and 'Unit' not found."
             }
@@ -307,6 +305,23 @@ Begin {
             }
             catch {
                 throw "Input file '$ImportFile' SourceFolder '$($task.SourceFolder)': Property 'OlderThan.Quantity' needs to be a number, the value '$($task.OlderThan.Quantity)' is not supported. Use value number '0' to move all files."
+            }
+            #endregion
+
+            #region Option
+            if ($task.PSObject.Properties.Name -notContains 'Option') {
+                throw "Input file '$ImportFile' SourceFolder '$($task.SourceFolder)': Property 'Option' not found."
+            }
+
+            if ($task.Option.PSObject.Properties.Name -notContains 'DuplicateFile') {
+                throw "Input file '$ImportFile' SourceFolder '$($task.SourceFolder)': Property 'Option.DuplicateFile' not found."
+            }
+
+            if (
+                ($task.Option.DuplicateFile) -and
+                ($task.Option.DuplicateFile -notMatch '^OverwriteFile$|^RenameFile$')
+            ) {
+                throw "Input file '$ImportFile': Value '$($task.Option.DuplicateFile)' is not supported by 'Option.DuplicateFile'. Valid options are NULL, 'OverwriteFile' or 'RenameFile'."
             }
             #endregion
         }

@@ -21,6 +21,9 @@ BeforeAll {
                     Quantity = 1
                     Unit     = 'Month'
                 }
+                Option       = @{
+                    DuplicateFile = $null
+                }
             }
         )
     }
@@ -298,6 +301,58 @@ Describe 'send an e-mail to the admin when' {
                     }
                 }
             }
+            Context 'Option' {
+                It 'Option is missing' {
+                    $testNewInputFile = Copy-ObjectHC $testInputFile
+                    $testNewInputFile.Tasks[0].Remove('Option')
+
+                    $testNewInputFile | ConvertTo-Json -Depth 5 |
+                    Out-File @testOutParams
+
+                    .$testScript @testParams
+
+                    Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
+                    (&$MailAdminParams) -and ($Message -like "*$ImportFile*Property 'Option' not found*")
+                    }
+                    Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
+                        $EntryType -eq 'Error'
+                    }
+                }
+                Context 'Option.DuplicateFile' {
+                    It 'is missing' {
+                        $testNewInputFile = Copy-ObjectHC $testInputFile
+                        $testNewInputFile.Tasks[0].Option.Remove('DuplicateFile')
+
+                        $testNewInputFile | ConvertTo-Json -Depth 5 |
+                        Out-File @testOutParams
+
+                        .$testScript @testParams
+
+                        Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
+                        (&$MailAdminParams) -and ($Message -like "*$ImportFile*Property 'Option.DuplicateFile' not found*")
+                        }
+                        Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
+                            $EntryType -eq 'Error'
+                        }
+                    }
+                    It 'is not supported' {
+                        $testNewInputFile = Copy-ObjectHC $testInputFile
+                        $testNewInputFile.Tasks[0].Option.DuplicateFile = 'wrong'
+
+                        $testNewInputFile | ConvertTo-Json -Depth 5 |
+                        Out-File @testOutParams
+
+                        .$testScript @testParams
+
+                        Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
+                    (&$MailAdminParams) -and ($Message -like "*$ImportFile*Value 'wrong' is not supported by 'Option.DuplicateFile'. Valid options are NULL, 'OverwriteFile' or 'RenameFile'*")
+                        }
+                        Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
+                            $EntryType -eq 'Error'
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -371,20 +426,10 @@ Describe 'a file in the source folder' {
     Context 'is moved when it is older than' {
         BeforeAll {
             $testNewInputFile = Copy-ObjectHC $testInputFile
-            $testNewInputFile.Tasks = @(
-                @{
-                    ComputerName = $env:COMPUTERNAME
-                    SourceFolder = $testFolder.Source
-                    Destination  = @{
-                        Folder      = $testFolder.Destination
-                        ChildFolder = 'Year\Month'
-                    }
-                    OlderThan    = @{
-                        Quantity = 3
-                        Unit     = 'Day'
-                    }
-                }
-            )
+            $testNewInputFile.Tasks[0].ComputerName = $env:COMPUTERNAME
+            $testNewInputFile.Tasks[0].SourceFolder = $testFolder.Source
+            $testNewInputFile.Tasks[0].Destination.Folder = $testFolder.Destination
+            $testNewInputFile.Tasks[0].OlderThan.Quantity = 3
         }
         BeforeEach {
             @($testFolder.Source, $testFolder.Destination) | ForEach-Object {
@@ -441,20 +486,11 @@ Describe 'a file in the source folder' {
     Context 'is moved to a folder with structure' {
         BeforeAll {
             $testNewInputFile = Copy-ObjectHC $testInputFile
-            $testNewInputFile.Tasks = @(
-                @{
-                    ComputerName = $env:COMPUTERNAME
-                    SourceFolder = $testFolder.Source
-                    Destination  = @{
-                        Folder      = $testFolder.Destination
-                        ChildFolder = 'Year'
-                    }
-                    OlderThan    = @{
-                        Quantity = 3
-                        Unit     = 'Day'
-                    }
-                }
-            )
+            $testNewInputFile.Tasks[0].ComputerName = $env:COMPUTERNAME
+            $testNewInputFile.Tasks[0].SourceFolder = $testFolder.Source
+            $testNewInputFile.Tasks[0].Destination.Folder = $testFolder.Destination
+            $testNewInputFile.Tasks[0].OlderThan.Quantity = 3
+            $testNewInputFile.Tasks[0].OlderThan.Unit = 'Day'
         }
         BeforeEach {
             @($testFolder.Source, $testFolder.Destination) | ForEach-Object {
@@ -549,20 +585,12 @@ Describe 'a file in the source folder' {
 Describe 'on a successful run' {
     BeforeAll {
         $testNewInputFile = Copy-ObjectHC $testInputFile
-        $testNewInputFile.Tasks = @(
-            @{
-                ComputerName = $env:COMPUTERNAME
-                SourceFolder = $testFolder.Source
-                Destination  = @{
-                    Folder      = $testFolder.Destination
-                    ChildFolder = 'Year'
-                }
-                OlderThan    = @{
-                    Quantity = 3
-                    Unit     = 'Day'
-                }
-            }
-        )
+        $testNewInputFile.Tasks[0].ComputerName = $env:COMPUTERNAME
+        $testNewInputFile.Tasks[0].SourceFolder = $testFolder.Source
+        $testNewInputFile.Tasks[0].Destination.Folder = $testFolder.Destination
+        $testNewInputFile.Tasks[0].Destination.ChildFolder = 'Year'
+        $testNewInputFile.Tasks[0].OlderThan.Quantity = 3
+        $testNewInputFile.Tasks[0].OlderThan.Unit = 'Day'
 
         $testNewInputFile | ConvertTo-Json -Depth 5 |
         Out-File @testOutParams
