@@ -15,7 +15,7 @@
         The file search is non recursive, only files in the root folder are
         treated.
 
-    .PARAMETER SourceFolderPath
+    .PARAMETER SourceFolder
         Path of the source folder where the file are located.
 
     .PARAMETER DestinationFolderPath
@@ -261,9 +261,9 @@ Begin {
             throw "Input file '$ImportFile': No 'Tasks' found."
         }
         foreach ($task in $Tasks) {
-            #region SourceFolderPath
-            if (-not $task.SourceFolderPath) {
-                throw "Input file '$ImportFile': No 'SourceFolderPath' found in one of the 'Tasks'."
+            #region SourceFolder
+            if (-not $task.SourceFolder) {
+                throw "Input file '$ImportFile': No 'SourceFolder' found in one of the 'Tasks'."
             }
             #endregion
 
@@ -295,18 +295,18 @@ Begin {
 
             #region OlderThan.Quantity
             if ($task.PSObject.Properties.Name -notContains 'OlderThan') {
-                throw "Input file '$ImportFile' SourceFolderPath '$($task.SourceFolderPath)': Property 'OlderThan' with 'Quantity' and 'Unit' not found."
+                throw "Input file '$ImportFile' SourceFolder '$($task.SourceFolder)': Property 'OlderThan' with 'Quantity' and 'Unit' not found."
             }
 
             if ($task.OlderThan.PSObject.Properties.Name -notContains 'Quantity') {
-                throw "Input file '$ImportFile' SourceFolderPath '$($task.SourceFolderPath)': Property 'OlderThan.Quantity' not found. Use value number '0' to move all files."
+                throw "Input file '$ImportFile' SourceFolder '$($task.SourceFolder)': Property 'OlderThan.Quantity' not found. Use value number '0' to move all files."
             }
 
             try {
                 $null = [int]$task.OlderThan.Quantity
             }
             catch {
-                throw "Input file '$ImportFile' SourceFolderPath '$($task.SourceFolderPath)': Property 'OlderThan.Quantity' needs to be a number, the value '$($task.OlderThan.Quantity)' is not supported. Use value number '0' to move all files."
+                throw "Input file '$ImportFile' SourceFolder '$($task.SourceFolder)': Property 'OlderThan.Quantity' needs to be a number, the value '$($task.OlderThan.Quantity)' is not supported. Use value number '0' to move all files."
             }
             #endregion
         }
@@ -352,14 +352,14 @@ Process {
         foreach ($task in $Tasks) {
             $invokeParams = @{
                 ScriptBlock  = $scriptBlock
-                ArgumentList = $task.SourceFolderPath,
+                ArgumentList = $task.SourceFolder,
                 $task.DestinationFolderPath,
                 $task.DestinationFolderStructure,
                 $task.OlderThan.Unit,
                 $task.OlderThan.Quantity
             }
 
-            $M = "Start job on '{0}' with SourceFolderPath '{1}' DestinationFolderPath '{2}' DestinationFolderStructure '{3}' OlderThan.Unit '{4}' OlderThan.Quantity '{5}'" -f $env:COMPUTERNAME,
+            $M = "Start job on '{0}' with SourceFolder '{1}' DestinationFolderPath '{2}' DestinationFolderStructure '{3}' OlderThan.Unit '{4}' OlderThan.Quantity '{5}'" -f $env:COMPUTERNAME,
             $invokeParams.ArgumentList[0], $invokeParams.ArgumentList[1],
             $invokeParams.ArgumentList[2], $invokeParams.ArgumentList[3],
             $invokeParams.ArgumentList[4]
@@ -412,8 +412,8 @@ Process {
                 $task.Job.Errors += $e.ToString()
                 $Error.Remove($e)
 
-                $M = "Task error on '{0}' with SourceFolderPath '{1}' DestinationFolderPath '{2}' DestinationFolderStructure '{3}' OlderThan.Unit '{4}' OlderThan.Quantity '{5}': {6}" -f
-                $task.ComputerName, $task.SourceFolderPath,
+                $M = "Task error on '{0}' with SourceFolder '{1}' DestinationFolderPath '{2}' DestinationFolderStructure '{3}' OlderThan.Unit '{4}' OlderThan.Quantity '{5}': {6}" -f
+                $task.ComputerName, $task.SourceFolder,
                 $task.DestinationFolderPath, $task.DestinationFolderStructure,
                 $task.OlderThan.Unit, $task.OlderThan.Quantity, $e.ToString()
                 Write-Verbose $M; Write-EventLog @EventErrorParams -Message $M
@@ -503,16 +503,16 @@ End {
         #region Job results HTML list
         $jobResultsHtmlListItems = foreach (
             $task in
-            $Tasks | Sort-Object -Property 'SourceFolderPath'
+            $Tasks | Sort-Object -Property 'SourceFolder'
         ) {
             'From: {0}<br>To: {1}<br>{2}<br>Moved: {3}{4}{5}' -f
             $(
-                if ($task.SourceFolderPath -match '^\\\\') {
-                    '<a href="{0}">{0}</a>' -f $task.SourceFolderPath
+                if ($task.SourceFolder -match '^\\\\') {
+                    '<a href="{0}">{0}</a>' -f $task.SourceFolder
                 }
                 else {
-                    $uncPath = $task.SourceFolderPath -Replace '^.{2}', (
-                        '\\{0}\{1}$' -f $task.ComputerName, $task.SourceFolderPath[0]
+                    $uncPath = $task.SourceFolder -Replace '^.{2}', (
+                        '\\{0}\{1}$' -f $task.ComputerName, $task.SourceFolder[0]
                     )
                     '<a href="{0}">{0}</a>' -f $uncPath
                 }
@@ -579,8 +579,8 @@ End {
                 $Tasks | Where-Object { $_.Job.Errors }
             ) {
                 foreach ($e in $task.Job.Errors) {
-                    "Failed task with ComputerName '{0}' with SourceFolderPath '{1}' DestinationFolderPath '{2}' DestinationFolderStructure '{3}' OlderThan.Unit '{4}' OlderThan.Quantity '{5}': {6}" -f
-                    $task.ComputerName, $task.SourceFolderPath,
+                    "Failed task with ComputerName '{0}' with SourceFolder '{1}' DestinationFolderPath '{2}' DestinationFolderStructure '{3}' OlderThan.Unit '{4}' OlderThan.Quantity '{5}': {6}" -f
+                    $task.ComputerName, $task.SourceFolder,
                     $task.DestinationFolderPath,
                     $task.DestinationFolderStructure,
                     $task.OlderThan.Unit, $task.OlderThan.Quantity, $e

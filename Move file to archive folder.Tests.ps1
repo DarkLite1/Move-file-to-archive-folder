@@ -12,7 +12,7 @@ BeforeAll {
         MaxConcurrentJobs = 5
         Tasks             = @(
             @{
-                SourceFolderPath           = '\\contoso\folderA'
+                SourceFolder           = '\\contoso\folderA'
                 DestinationFolderPath      = '\\contoso\folderB'
                 DestinationFolderStructure = 'Year\Month'
                 OlderThan                  = @{
@@ -110,9 +110,9 @@ Describe 'send an e-mail to the admin when' {
                     $EntryType -eq 'Error'
                 }
             }
-            It 'SourceFolderPath is missing' {
+            It 'SourceFolder is missing' {
                 $testNewInputFile = Copy-ObjectHC $testInputFile
-                $testNewInputFile.Tasks[0].SourceFolderPath = $null
+                $testNewInputFile.Tasks[0].SourceFolder = $null
 
                 $testNewInputFile | ConvertTo-Json -Depth 5 |
                 Out-File @testOutParams
@@ -120,7 +120,7 @@ Describe 'send an e-mail to the admin when' {
                 .$testScript @testParams
 
                 Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                    (&$MailAdminParams) -and ($Message -like "*$ImportFile*No 'SourceFolderPath' found*")
+                    (&$MailAdminParams) -and ($Message -like "*$ImportFile*No 'SourceFolder' found*")
                 }
                 Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                     $EntryType -eq 'Error'
@@ -147,7 +147,7 @@ Describe 'send an e-mail to the admin when' {
                     $testNewInputFile = Copy-ObjectHC $testInputFile
                     $testNewInputFile.Tasks = @(
                         @{
-                            SourceFolderPath      = '\\contoso\folderA'
+                            SourceFolder      = '\\contoso\folderA'
                             DestinationFolderPath = '\\contoso\folderB'
                             # DestinationFolderStructure = "Year\\Month"
                             OlderThan             = @{
@@ -173,7 +173,7 @@ Describe 'send an e-mail to the admin when' {
                     $testNewInputFile = Copy-ObjectHC $testInputFile
                     $testNewInputFile.Tasks = @(
                         @{
-                            SourceFolderPath           = '\\contoso\folderA'
+                            SourceFolder           = '\\contoso\folderA'
                             DestinationFolderPath      = '\\contoso\folderB'
                             DestinationFolderStructure = "wrong"
                             OlderThan                  = @{
@@ -202,7 +202,7 @@ Describe 'send an e-mail to the admin when' {
                         $testNewInputFile = Copy-ObjectHC $testInputFile
                         $testNewInputFile.Tasks = @(
                             @{
-                                SourceFolderPath           = '\\contoso\folderA'
+                                SourceFolder           = '\\contoso\folderA'
                                 DestinationFolderPath      = '\\contoso\folderB'
                                 DestinationFolderStructure = 'Year\Month'
                                 OlderThan                  = @{
@@ -228,7 +228,7 @@ Describe 'send an e-mail to the admin when' {
                         $testNewInputFile = Copy-ObjectHC $testInputFile
                         $testNewInputFile.Tasks = @(
                             @{
-                                SourceFolderPath           = '\\contoso\folderA'
+                                SourceFolder           = '\\contoso\folderA'
                                 DestinationFolderPath      = '\\contoso\folderB'
                                 DestinationFolderStructure = 'Year\Month'
                                 OlderThan                  = @{
@@ -296,7 +296,7 @@ Describe 'a file in the source folder' {
             $testNewInputFile.Tasks = @(
                 @{
                     ComputerName               = $env:COMPUTERNAME
-                    SourceFolderPath           = $testFolder.Source
+                    SourceFolder           = $testFolder.Source
                     DestinationFolderPath      = $testFolder.Destination
                     DestinationFolderStructure = 'Year\Month'
                     OlderThan                  = @{
@@ -360,7 +360,7 @@ Describe 'a file in the source folder' {
             $testNewInputFile.Tasks = @(
                 @{
                     ComputerName               = $env:COMPUTERNAME
-                    SourceFolderPath           = $testFolder.Source
+                    SourceFolder           = $testFolder.Source
                     DestinationFolderPath      = $testFolder.Destination
                     DestinationFolderStructure = 'Year\Month'
                     OlderThan                  = @{
@@ -428,7 +428,7 @@ Describe 'a file in the source folder' {
             $testNewInputFile.Tasks = @(
                 @{
                     ComputerName               = $env:COMPUTERNAME
-                    SourceFolderPath           = $testFolder.Source
+                    SourceFolder           = $testFolder.Source
                     DestinationFolderPath      = $testFolder.Destination
                     DestinationFolderStructure = 'Year'
                     OlderThan                  = @{
@@ -534,7 +534,7 @@ Describe 'on a successful run' {
         $testNewInputFile.Tasks = @(
             @{
                 ComputerName               = $env:COMPUTERNAME
-                SourceFolderPath           = $testFolder.Source
+                SourceFolder           = $testFolder.Source
                 DestinationFolderPath      = $testFolder.Destination
                 DestinationFolderStructure = 'Year'
                 OlderThan                  = @{

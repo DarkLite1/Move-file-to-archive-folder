@@ -4,7 +4,7 @@
   "Tasks": [
     {
       "ComputerName": "PC1",
-      "SourceFolderPath": "C:\\folderA",
+      "SourceFolder": "C:\\folderA",
       "Destination": {
         "Folder": "C:\\folderB",
         "FolderStructure": "Year-Month"
@@ -20,7 +20,7 @@
     },
     {
       "ComputerName": null,
-      "SourceFolderPath": "\\\\contoso\\folderA",
+      "SourceFolder": "\\\\contoso\\folderA",
       "DestinationFolderPath": "\\\\contoso\\folderB",
       "DestinationFolderStructure": "Year",
       "OlderThan": {
