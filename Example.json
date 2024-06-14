@@ -7,22 +7,24 @@
       "SourceFolder": "C:\\folderA",
       "Destination": {
         "Folder": "C:\\folderB",
-        "FolderStructure": "Year-Month"
+        "ChildFolder": "Year-Month"
       },
       "OlderThan": {
         "Quantity": 1,
         "Unit": "Day"
       },
       "?": {
-        "DestinationFolderStructure": "Year-Month | Year\\Month | Year | YYYYMM",
+        "Destination.ChildFolder": "Year-Month | Year\\Month | Year | YYYYMM",
         "OlderThan.Unit": "Day | Month | Year"
       }
     },
     {
       "ComputerName": null,
       "SourceFolder": "\\\\contoso\\folderA",
-      "DestinationFolderPath": "\\\\contoso\\folderB",
-      "DestinationFolderStructure": "Year",
+      "Destination": {
+        "Folder": "\\\\contoso\\folderB",
+        "ChildFolder": "Year"
+      },
       "OlderThan": {
         "Quantity": 1,
         "Unit": "Year"

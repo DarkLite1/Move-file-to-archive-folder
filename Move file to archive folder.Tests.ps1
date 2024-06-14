@@ -12,10 +12,12 @@ BeforeAll {
         MaxConcurrentJobs = 5
         Tasks             = @(
             @{
-                SourceFolder           = '\\contoso\folderA'
-                DestinationFolderPath      = '\\contoso\folderB'
-                DestinationFolderStructure = 'Year\Month'
-                OlderThan                  = @{
+                SourceFolder = '\\contoso\folderA'
+                Destination  = @{
+                    Folder      = '\\contoso\folderB'
+                    ChildFolder = 'Year\Month'
+                }
+                OlderThan    = @{
                     Quantity = 1
                     Unit     = 'Month'
                 }
@@ -126,9 +128,9 @@ Describe 'send an e-mail to the admin when' {
                     $EntryType -eq 'Error'
                 }
             }
-            It 'DestinationFolderPath is missing' {
+            It 'Destination.Folder is missing' {
                 $testNewInputFile = Copy-ObjectHC $testInputFile
-                $testNewInputFile.Tasks[0].DestinationFolderPath = $null
+                $testNewInputFile.Tasks[0].Destination.Folder = $null
 
                 $testNewInputFile | ConvertTo-Json -Depth 5 |
                 Out-File @testOutParams
@@ -136,21 +138,23 @@ Describe 'send an e-mail to the admin when' {
                 .$testScript @testParams
 
                 Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                    (&$MailAdminParams) -and ($Message -like "*$ImportFile*No 'DestinationFolderPath' found*")
+                    (&$MailAdminParams) -and ($Message -like "*$ImportFile*No 'Destination.Folder' found*")
                 }
                 Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                     $EntryType -eq 'Error'
                 }
             }
-            Context 'DestinationFolderStructure' {
+            Context 'Destination.ChildFolder' {
                 It 'is missing' {
                     $testNewInputFile = Copy-ObjectHC $testInputFile
                     $testNewInputFile.Tasks = @(
                         @{
-                            SourceFolder      = '\\contoso\folderA'
-                            DestinationFolderPath = '\\contoso\folderB'
-                            # DestinationFolderStructure = "Year\\Month"
-                            OlderThan             = @{
+                            SourceFolder = '\\contoso\folderA'
+                            Destination  = @{
+                                Folder = '\\contoso\folderB'
+                                # ChildFolder = "Year\\Month"
+                            }
+                            OlderThan    = @{
                                 Quantity = 1
                                 Unit     = 'Month'
                             }
@@ -163,7 +167,7 @@ Describe 'send an e-mail to the admin when' {
                     .$testScript @testParams
 
                     Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                    (&$MailAdminParams) -and ($Message -like "*$ImportFile*No 'DestinationFolderStructure' found*")
+                    (&$MailAdminParams) -and ($Message -like "*$ImportFile*No 'Destination.ChildFolder' found*")
                     }
                     Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                         $EntryType -eq 'Error'
@@ -173,10 +177,12 @@ Describe 'send an e-mail to the admin when' {
                     $testNewInputFile = Copy-ObjectHC $testInputFile
                     $testNewInputFile.Tasks = @(
                         @{
-                            SourceFolder           = '\\contoso\folderA'
-                            DestinationFolderPath      = '\\contoso\folderB'
-                            DestinationFolderStructure = "wrong"
-                            OlderThan                  = @{
+                            SourceFolder = '\\contoso\folderA'
+                            Destination  = @{
+                                Folder      = '\\contoso\folderB'
+                                ChildFolder = 'Wrong'
+                            }
+                            OlderThan    = @{
                                 Quantity = 1
                                 Unit     = 'Month'
                             }
@@ -189,7 +195,7 @@ Describe 'send an e-mail to the admin when' {
                     .$testScript @testParams
 
                     Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                    (&$MailAdminParams) -and ($Message -like "*$ImportFile*Value 'wrong' is not supported by 'DestinationFolderStructure'. Valid options are 'Year-Month', 'Year\Month', 'Year' or 'YYYYMM'.*")
+                    (&$MailAdminParams) -and ($Message -like "*$ImportFile*Value 'wrong' is not supported by 'Destination.ChildFolder'. Valid options are 'Year-Month', 'Year\Month', 'Year' or 'YYYYMM'.*")
                     }
                     Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                         $EntryType -eq 'Error'
@@ -202,10 +208,12 @@ Describe 'send an e-mail to the admin when' {
                         $testNewInputFile = Copy-ObjectHC $testInputFile
                         $testNewInputFile.Tasks = @(
                             @{
-                                SourceFolder           = '\\contoso\folderA'
-                                DestinationFolderPath      = '\\contoso\folderB'
-                                DestinationFolderStructure = 'Year\Month'
-                                OlderThan                  = @{
+                                SourceFolder = '\\contoso\folderA'
+                                Destination  = @{
+                                    Folder      = '\\contoso\folderB'
+                                    ChildFolder = 'Year\Month'
+                                }
+                                OlderThan    = @{
                                     Quantity = 1
                                     # Unit     = 'Month'
                                 }
@@ -228,10 +236,12 @@ Describe 'send an e-mail to the admin when' {
                         $testNewInputFile = Copy-ObjectHC $testInputFile
                         $testNewInputFile.Tasks = @(
                             @{
-                                SourceFolder           = '\\contoso\folderA'
-                                DestinationFolderPath      = '\\contoso\folderB'
-                                DestinationFolderStructure = 'Year\Month'
-                                OlderThan                  = @{
+                                SourceFolder = '\\contoso\folderA'
+                                Destination  = @{
+                                    Folder      = '\\contoso\folderB'
+                                    ChildFolder = 'Year\Month'
+                                }
+                                OlderThan    = @{
                                     Quantity = 1
                                     Unit     = 'notSupported'
                                 }
@@ -295,11 +305,13 @@ Describe 'a file in the source folder' {
             $testNewInputFile = Copy-ObjectHC $testInputFile
             $testNewInputFile.Tasks = @(
                 @{
-                    ComputerName               = $env:COMPUTERNAME
-                    SourceFolder           = $testFolder.Source
-                    DestinationFolderPath      = $testFolder.Destination
-                    DestinationFolderStructure = 'Year\Month'
-                    OlderThan                  = @{
+                    ComputerName = $env:COMPUTERNAME
+                    SourceFolder = $testFolder.Source
+                    Destination  = @{
+                        Folder      = $testFolder.Destination
+                        ChildFolder = 'Year\Month'
+                    }
+                    OlderThan    = @{
                         Quantity = 3
                         Unit     = 'Day'
                     }
@@ -359,11 +371,13 @@ Describe 'a file in the source folder' {
             $testNewInputFile = Copy-ObjectHC $testInputFile
             $testNewInputFile.Tasks = @(
                 @{
-                    ComputerName               = $env:COMPUTERNAME
-                    SourceFolder           = $testFolder.Source
-                    DestinationFolderPath      = $testFolder.Destination
-                    DestinationFolderStructure = 'Year\Month'
-                    OlderThan                  = @{
+                    ComputerName = $env:COMPUTERNAME
+                    SourceFolder = $testFolder.Source
+                    Destination  = @{
+                        Folder      = $testFolder.Destination
+                        ChildFolder = 'Year\Month'
+                    }
+                    OlderThan    = @{
                         Quantity = 3
                         Unit     = 'Day'
                     }
@@ -427,11 +441,13 @@ Describe 'a file in the source folder' {
             $testNewInputFile = Copy-ObjectHC $testInputFile
             $testNewInputFile.Tasks = @(
                 @{
-                    ComputerName               = $env:COMPUTERNAME
-                    SourceFolder           = $testFolder.Source
-                    DestinationFolderPath      = $testFolder.Destination
-                    DestinationFolderStructure = 'Year'
-                    OlderThan                  = @{
+                    ComputerName = $env:COMPUTERNAME
+                    SourceFolder = $testFolder.Source
+                    Destination  = @{
+                        Folder      = $testFolder.Destination
+                        ChildFolder = 'Year'
+                    }
+                    OlderThan    = @{
                         Quantity = 3
                         Unit     = 'Day'
                     }
@@ -445,7 +461,7 @@ Describe 'a file in the source folder' {
             $testFile = (New-Item -Path "$($testFolder.source)\file.txt" -ItemType File).FullName
         }
         It 'Year' {
-            $testNewInputFile.Tasks[0].DestinationFolderStructure = 'Year'
+            $testNewInputFile.Tasks[0].Destination.ChildFolder = 'Year'
 
             $testNewInputFile | ConvertTo-Json -Depth 5 |
             Out-File @testOutParams
@@ -465,7 +481,7 @@ Describe 'a file in the source folder' {
             ) | Should -HaveCount 1
         }
         It 'Year-Month' {
-            $testNewInputFile.Tasks[0].DestinationFolderStructure = 'Year-Month'
+            $testNewInputFile.Tasks[0].Destination.ChildFolder = 'Year-Month'
 
             $testNewInputFile | ConvertTo-Json -Depth 5 |
             Out-File @testOutParams
@@ -486,7 +502,7 @@ Describe 'a file in the source folder' {
             ) | Should -HaveCount 1
         }
         It 'Year\Month' {
-            $testNewInputFile.Tasks[0].DestinationFolderStructure = 'Year\Month'
+            $testNewInputFile.Tasks[0].Destination.ChildFolder = 'Year\Month'
 
             $testNewInputFile | ConvertTo-Json -Depth 5 |
             Out-File @testOutParams
@@ -507,7 +523,7 @@ Describe 'a file in the source folder' {
             ) | Should -HaveCount 1
         }
         It 'YYYYMM' {
-            $testNewInputFile.Tasks[0].DestinationFolderStructure = 'YYYYMM'
+            $testNewInputFile.Tasks[0].Destination.ChildFolder = 'YYYYMM'
 
             $testNewInputFile | ConvertTo-Json -Depth 5 |
             Out-File @testOutParams
@@ -533,11 +549,13 @@ Describe 'on a successful run' {
         $testNewInputFile = Copy-ObjectHC $testInputFile
         $testNewInputFile.Tasks = @(
             @{
-                ComputerName               = $env:COMPUTERNAME
-                SourceFolder           = $testFolder.Source
-                DestinationFolderPath      = $testFolder.Destination
-                DestinationFolderStructure = 'Year'
-                OlderThan                  = @{
+                ComputerName = $env:COMPUTERNAME
+                SourceFolder = $testFolder.Source
+                Destination  = @{
+                    Folder      = $testFolder.Destination
+                    ChildFolder = 'Year'
+                }
+                OlderThan    = @{
                     Quantity = 3
                     Unit     = 'Day'
                 }

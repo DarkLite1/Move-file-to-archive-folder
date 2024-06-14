@@ -18,10 +18,10 @@
     .PARAMETER SourceFolder
         Path of the source folder where the file are located.
 
-    .PARAMETER DestinationFolderPath
+    .PARAMETER Destination.Folder
         Path of the destination folder where the files need be moved too.
 
-    .PARAMETER DestinationFolderStructure
+    .PARAMETER Destination.ChildFolder
         Name of the folder that needs to be created based on the CreationDate
         of the file.
 
@@ -167,7 +167,7 @@ Begin {
                         break
                     }
                     Default {
-                        throw "DestinationFolderStructure '$_' not supported"
+                        throw "Destination.ChildFolder '$_' not supported"
                     }
                 }
 
@@ -267,19 +267,19 @@ Begin {
             }
             #endregion
 
-            #region DestinationFolderPath
-            if (-not $task.DestinationFolderPath) {
-                throw "Input file '$ImportFile': No 'DestinationFolderPath' found in one of the 'Tasks'."
+            #region Destination.Folder
+            if (-not $task.Destination.Folder) {
+                throw "Input file '$ImportFile': No 'Destination.Folder' found in one of the 'Tasks'."
             }
             #endregion
 
-            #region DestinationFolderStructure
-            if (-not $task.DestinationFolderStructure) {
-                throw "Input file '$ImportFile': No 'DestinationFolderStructure' found in one of the 'Tasks'."
+            #region Destination.ChildFolder
+            if (-not $task.Destination.ChildFolder) {
+                throw "Input file '$ImportFile': No 'Destination.ChildFolder' found in one of the 'Tasks'."
             }
 
-            if ($task.DestinationFolderStructure -notMatch '^Year-Month$|^Year\\Month$|^Year$|^YYYYMM$') {
-                throw "Input file '$ImportFile': Value '$($task.DestinationFolderStructure)' is not supported by 'DestinationFolderStructure'. Valid options are 'Year-Month', 'Year\Month', 'Year' or 'YYYYMM'."
+            if ($task.Destination.ChildFolder -notMatch '^Year-Month$|^Year\\Month$|^Year$|^YYYYMM$') {
+                throw "Input file '$ImportFile': Value '$($task.Destination.ChildFolder)' is not supported by 'Destination.ChildFolder'. Valid options are 'Year-Month', 'Year\Month', 'Year' or 'YYYYMM'."
             }
             #endregion
 
@@ -353,13 +353,13 @@ Process {
             $invokeParams = @{
                 ScriptBlock  = $scriptBlock
                 ArgumentList = $task.SourceFolder,
-                $task.DestinationFolderPath,
-                $task.DestinationFolderStructure,
+                $task.Destination.Folder,
+                $task.Destination.ChildFolder,
                 $task.OlderThan.Unit,
                 $task.OlderThan.Quantity
             }
 
-            $M = "Start job on '{0}' with SourceFolder '{1}' DestinationFolderPath '{2}' DestinationFolderStructure '{3}' OlderThan.Unit '{4}' OlderThan.Quantity '{5}'" -f $env:COMPUTERNAME,
+            $M = "Start job on '{0}' with SourceFolder '{1}' Destination.Folder '{2}' Destination.ChildFolder '{3}' OlderThan.Unit '{4}' OlderThan.Quantity '{5}'" -f $env:COMPUTERNAME,
             $invokeParams.ArgumentList[0], $invokeParams.ArgumentList[1],
             $invokeParams.ArgumentList[2], $invokeParams.ArgumentList[3],
             $invokeParams.ArgumentList[4]
@@ -412,9 +412,9 @@ Process {
                 $task.Job.Errors += $e.ToString()
                 $Error.Remove($e)
 
-                $M = "Task error on '{0}' with SourceFolder '{1}' DestinationFolderPath '{2}' DestinationFolderStructure '{3}' OlderThan.Unit '{4}' OlderThan.Quantity '{5}': {6}" -f
+                $M = "Task error on '{0}' with SourceFolder '{1}' Destination.Folder '{2}' Destination.ChildFolder '{3}' OlderThan.Unit '{4}' OlderThan.Quantity '{5}': {6}" -f
                 $task.ComputerName, $task.SourceFolder,
-                $task.DestinationFolderPath, $task.DestinationFolderStructure,
+                $task.Destination.Folder, $task.Destination.ChildFolder,
                 $task.OlderThan.Unit, $task.OlderThan.Quantity, $e.ToString()
                 Write-Verbose $M; Write-EventLog @EventErrorParams -Message $M
             }
@@ -518,12 +518,12 @@ End {
                 }
             ),
             $(
-                if ($task.DestinationFolderPath -match '^\\\\') {
-                    '<a href="{0}">{0}</a>' -f $task.DestinationFolderPath
+                if ($task.Destination.Folder -match '^\\\\') {
+                    '<a href="{0}">{0}</a>' -f $task.Destination.Folder
                 }
                 else {
-                    $uncPath = $task.DestinationFolderPath -Replace '^.{2}', (
-                        '\\{0}\{1}$' -f $task.ComputerName, $task.DestinationFolderPath[0]
+                    $uncPath = $task.Destination.Folder -Replace '^.{2}', (
+                        '\\{0}\{1}$' -f $task.ComputerName, $task.Destination.Folder[0]
                     )
                     '<a href="{0}">{0}</a>' -f $uncPath
                 }
@@ -579,10 +579,10 @@ End {
                 $Tasks | Where-Object { $_.Job.Errors }
             ) {
                 foreach ($e in $task.Job.Errors) {
-                    "Failed task with ComputerName '{0}' with SourceFolder '{1}' DestinationFolderPath '{2}' DestinationFolderStructure '{3}' OlderThan.Unit '{4}' OlderThan.Quantity '{5}': {6}" -f
+                    "Failed task with ComputerName '{0}' with SourceFolder '{1}' Destination.Folder '{2}' Destination.ChildFolder '{3}' OlderThan.Unit '{4}' OlderThan.Quantity '{5}': {6}" -f
                     $task.ComputerName, $task.SourceFolder,
-                    $task.DestinationFolderPath,
-                    $task.DestinationFolderStructure,
+                    $task.Destination.Folder,
+                    $task.Destination.ChildFolder,
                     $task.OlderThan.Unit, $task.OlderThan.Quantity, $e
                 }
             }
