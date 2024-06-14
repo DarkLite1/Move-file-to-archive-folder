@@ -15,8 +15,10 @@ BeforeAll {
                 SourceFolderPath           = '\\contoso\folderA'
                 DestinationFolderPath      = '\\contoso\folderB'
                 DestinationFolderStructure = 'Year\Month'
-                OlderThanUnit              = 'Month'
-                OlderThanQuantity          = 1
+                OlderThan                  = @{
+                    Quantity = 1
+                    Unit     = 'Month'
+                }
             }
         )
     }
@@ -148,8 +150,10 @@ Describe 'send an e-mail to the admin when' {
                             SourceFolderPath      = '\\contoso\folderA'
                             DestinationFolderPath = '\\contoso\folderB'
                             # DestinationFolderStructure = "Year\\Month"
-                            OlderThanUnit         = 'Month'
-                            OlderThanQuantity     = 1
+                            OlderThan             = @{
+                                Quantity = 1
+                                Unit     = 'Month'
+                            }
                         }
                     )
 
@@ -172,8 +176,10 @@ Describe 'send an e-mail to the admin when' {
                             SourceFolderPath           = '\\contoso\folderA'
                             DestinationFolderPath      = '\\contoso\folderB'
                             DestinationFolderStructure = "wrong"
-                            OlderThanUnit              = 'Month'
-                            OlderThanQuantity          = 1
+                            OlderThan                  = @{
+                                Quantity = 1
+                                Unit     = 'Month'
+                            }
                         }
                     )
 
@@ -190,87 +196,93 @@ Describe 'send an e-mail to the admin when' {
                     }
                 }
             }
-            Context 'OlderThanUnit' {
-                It 'is missing' {
-                    $testNewInputFile = Copy-ObjectHC $testInputFile
-                    $testNewInputFile.Tasks = @(
-                        @{
-                            SourceFolderPath           = '\\contoso\folderA'
-                            DestinationFolderPath      = '\\contoso\folderB'
-                            DestinationFolderStructure = 'Year\Month'
-                            # OlderThanUnit              = 'Month'
-                            OlderThanQuantity          = 1
+            Context 'OlderThan' {
+                Context 'Unit' {
+                    It 'is missing' {
+                        $testNewInputFile = Copy-ObjectHC $testInputFile
+                        $testNewInputFile.Tasks = @(
+                            @{
+                                SourceFolderPath           = '\\contoso\folderA'
+                                DestinationFolderPath      = '\\contoso\folderB'
+                                DestinationFolderStructure = 'Year\Month'
+                                OlderThan                  = @{
+                                    Quantity = 1
+                                    # Unit     = 'Month'
+                                }
+                            }
+                        )
+
+                        $testNewInputFile | ConvertTo-Json -Depth 5 |
+                        Out-File @testOutParams
+
+                        .$testScript @testParams
+
+                        Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
+                    (&$MailAdminParams) -and ($Message -like "*$ImportFile*No 'OlderThan.Unit' found*")
                         }
-                    )
-
-                    $testNewInputFile | ConvertTo-Json -Depth 5 |
-                    Out-File @testOutParams
-
-                    .$testScript @testParams
-
-                    Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                (&$MailAdminParams) -and ($Message -like "*$ImportFile*No 'OlderThanUnit' found*")
-                    }
-                    Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                        $EntryType -eq 'Error'
-                    }
-                }
-                It 'is not supported' {
-                    $testNewInputFile = Copy-ObjectHC $testInputFile
-                    $testNewInputFile.Tasks = @(
-                        @{
-                            SourceFolderPath           = '\\contoso\folderA'
-                            DestinationFolderPath      = '\\contoso\folderB'
-                            DestinationFolderStructure = 'Year\Month'
-                            OlderThanUnit              = "notSupported"
-                            OlderThanQuantity          = 1
+                        Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
+                            $EntryType -eq 'Error'
                         }
-                    )
-
-                    $testNewInputFile | ConvertTo-Json -Depth 5 |
-                    Out-File @testOutParams
-
-                    .$testScript @testParams
-
-                    Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                (&$MailAdminParams) -and ($Message -like "*$ImportFile*Value 'notSupported' is not supported by 'OlderThanUnit'. Valid options are 'Day', 'Month' or 'Year'*")
                     }
-                    Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                        $EntryType -eq 'Error'
-                    }
-                }
-            }
-            Context 'OlderThanQuantity' {
-                It 'is missing' {
-                    $testNewInputFile = Copy-ObjectHC $testInputFile
-                    $testNewInputFile.Tasks[0].Remove("OlderThanQuantity")
+                    It 'is not supported' {
+                        $testNewInputFile = Copy-ObjectHC $testInputFile
+                        $testNewInputFile.Tasks = @(
+                            @{
+                                SourceFolderPath           = '\\contoso\folderA'
+                                DestinationFolderPath      = '\\contoso\folderB'
+                                DestinationFolderStructure = 'Year\Month'
+                                OlderThan                  = @{
+                                    Quantity = 1
+                                    Unit     = 'notSupported'
+                                }
+                            }
+                        )
 
-                    $testNewInputFile | ConvertTo-Json -Depth 5 |
-                    Out-File @testOutParams
+                        $testNewInputFile | ConvertTo-Json -Depth 5 |
+                        Out-File @testOutParams
 
-                    .$testScript @testParams
+                        .$testScript @testParams
 
-                    Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                (&$MailAdminParams) -and ($Message -like "*$ImportFile*Property 'OlderThanQuantity' not found. Use value number '0' to move all files*")
-                    }
-                    Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                        $EntryType -eq 'Error'
+                        Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
+                    (&$MailAdminParams) -and ($Message -like "*$ImportFile*Value 'notSupported' is not supported by 'OlderThan.Unit'. Valid options are 'Day', 'Month' or 'Year'*")
+                        }
+                        Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
+                            $EntryType -eq 'Error'
+                        }
                     }
                 }
-                It 'is not a number' {
-                    $testNewInputFile = Copy-ObjectHC $testInputFile
-                    $testNewInputFile.Tasks[0].OlderThanQuantity = 'a'
+                Context 'Quantity' {
+                    It 'is missing' {
+                        $testNewInputFile = Copy-ObjectHC $testInputFile
+                        $testNewInputFile.Tasks[0].OlderThan.Remove("Quantity")
 
-                    $testNewInputFile | ConvertTo-Json -Depth 5 |
-                    Out-File @testOutParams
+                        $testNewInputFile | ConvertTo-Json -Depth 5 |
+                        Out-File @testOutParams
 
-                    .$testScript @testParams
+                        .$testScript @testParams
 
-                    Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                (&$MailAdminParams) -and ($Message -like "*$ImportFile*Property 'OlderThanQuantity' needs to be a number, the value 'a' is not supported*")
+                        Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
+                    (&$MailAdminParams) -and ($Message -like "*$ImportFile*Property 'OlderThan.Quantity' not found. Use value number '0' to move all files*")
+                        }
+                        Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
+                            $EntryType -eq 'Error'
+                        }
                     }
-                    Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                        $EntryType -eq 'Error'
+                    It 'is not a number' {
+                        $testNewInputFile = Copy-ObjectHC $testInputFile
+                        $testNewInputFile.Tasks[0].OlderThan.Quantity = 'a'
+
+                        $testNewInputFile | ConvertTo-Json -Depth 5 |
+                        Out-File @testOutParams
+
+                        .$testScript @testParams
+
+                        Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
+                    (&$MailAdminParams) -and ($Message -like "*$ImportFile*Property 'OlderThan.Quantity' needs to be a number, the value 'a' is not supported*")
+                        }
+                        Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
+                            $EntryType -eq 'Error'
+                        }
                     }
                 }
             }
@@ -287,15 +299,17 @@ Describe 'a file in the source folder' {
                     SourceFolderPath           = $testFolder.Source
                     DestinationFolderPath      = $testFolder.Destination
                     DestinationFolderStructure = 'Year\Month'
-                    OlderThanUnit              = 'Day'
-                    OlderThanQuantity          = 3
+                    OlderThan                  = @{
+                        Quantity = 3
+                        Unit     = 'Day'
+                    }
                 }
             )
 
             $testFile = (New-Item -Path "$($testFolder.source)\file.txt" -ItemType File).FullName
         }
         It 'Day' {
-            $testNewInputFile.Tasks[0].OlderThanUnit = 'Day'
+            $testNewInputFile.Tasks[0].OlderThan.Unit = 'Day'
 
             $testNewInputFile | ConvertTo-Json -Depth 5 |
             Out-File @testOutParams
@@ -310,7 +324,7 @@ Describe 'a file in the source folder' {
             Get-ChildItem -Path $testFolder.Destination | Should -HaveCount 0
         }
         It 'Month' {
-            $testNewInputFile.Tasks[0].OlderThanUnit = 'Month'
+            $testNewInputFile.Tasks[0].OlderThan.Unit = 'Month'
 
             $testNewInputFile | ConvertTo-Json -Depth 5 |
             Out-File @testOutParams
@@ -325,7 +339,7 @@ Describe 'a file in the source folder' {
             Get-ChildItem -Path $testFolder.Destination | Should -HaveCount 0
         }
         It 'Year' {
-            $testNewInputFile.Tasks[0].OlderThanUnit = 'Year'
+            $testNewInputFile.Tasks[0].OlderThan.Unit = 'Year'
 
             $testNewInputFile | ConvertTo-Json -Depth 5 |
             Out-File @testOutParams
@@ -349,8 +363,10 @@ Describe 'a file in the source folder' {
                     SourceFolderPath           = $testFolder.Source
                     DestinationFolderPath      = $testFolder.Destination
                     DestinationFolderStructure = 'Year\Month'
-                    OlderThanUnit              = 'Day'
-                    OlderThanQuantity          = 3
+                    OlderThan                  = @{
+                        Quantity = 3
+                        Unit     = 'Day'
+                    }
                 }
             )
         }
@@ -361,7 +377,7 @@ Describe 'a file in the source folder' {
             $testFile = (New-Item -Path "$($testFolder.source)\file.txt" -ItemType File).FullName
         }
         It 'Day' {
-            $testNewInputFile.Tasks[0].OlderThanUnit = 'Day'
+            $testNewInputFile.Tasks[0].OlderThan.Unit = 'Day'
 
             $testNewInputFile | ConvertTo-Json -Depth 5 |
             Out-File @testOutParams
@@ -376,7 +392,7 @@ Describe 'a file in the source folder' {
             Get-ChildItem -Path $testFolder.Destination | Should -HaveCount 1
         }
         It 'Month' {
-            $testNewInputFile.Tasks[0].OlderThanUnit = 'Month'
+            $testNewInputFile.Tasks[0].OlderThan.Unit = 'Month'
 
             $testNewInputFile | ConvertTo-Json -Depth 5 |
             Out-File @testOutParams
@@ -391,7 +407,7 @@ Describe 'a file in the source folder' {
             Get-ChildItem -Path $testFolder.Destination | Should -HaveCount 1
         }
         It 'Year' {
-            $testNewInputFile.Tasks[0].OlderThanUnit = 'Year'
+            $testNewInputFile.Tasks[0].OlderThan.Unit = 'Year'
 
             $testNewInputFile | ConvertTo-Json -Depth 5 |
             Out-File @testOutParams
@@ -415,8 +431,10 @@ Describe 'a file in the source folder' {
                     SourceFolderPath           = $testFolder.Source
                     DestinationFolderPath      = $testFolder.Destination
                     DestinationFolderStructure = 'Year'
-                    OlderThanUnit              = 'Day'
-                    OlderThanQuantity          = 3
+                    OlderThan                  = @{
+                        Quantity = 3
+                        Unit     = 'Day'
+                    }
                 }
             )
         }
@@ -519,8 +537,10 @@ Describe 'on a successful run' {
                 SourceFolderPath           = $testFolder.Source
                 DestinationFolderPath      = $testFolder.Destination
                 DestinationFolderStructure = 'Year'
-                OlderThanUnit              = 'Day'
-                OlderThanQuantity          = 3
+                OlderThan                  = @{
+                    Quantity = 3
+                    Unit     = 'Day'
+                }
             }
         )
 

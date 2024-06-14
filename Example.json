@@ -5,38 +5,29 @@
     {
       "ComputerName": "PC1",
       "SourceFolderPath": "C:\\folderA",
-      "DestinationFolderPath": "C:\\folderB",
-      "DestinationFolderStructure": "Year-Month",
-      "OlderThanUnit": "Day",
-      "OlderThanQuantity": 1,
-      "?": "Move files older than 1 day to folder '2022-01'"
-    },
-    {
-      "ComputerName": "PC2",
-      "SourceFolderPath": "C:\\folderA",
-      "DestinationFolderPath": "C:\\folderB",
-      "DestinationFolderStructure": "Year\\Month",
-      "OlderThanUnit": "Month",
-      "OlderThanQuantity": 1,
-      "?": "Move files older than 1 month to folder '01' (January) within folder '2022' (year)"
+      "Destination": {
+        "Folder": "C:\\folderB",
+        "FolderStructure": "Year-Month"
+      },
+      "OlderThan": {
+        "Quantity": 1,
+        "Unit": "Day"
+      },
+      "?": {
+        "DestinationFolderStructure": "Year-Month | Year\\Month | Year | YYYYMM",
+        "OlderThan.Unit": "Day | Month | Year"
+      }
     },
     {
       "ComputerName": null,
       "SourceFolderPath": "\\\\contoso\\folderA",
       "DestinationFolderPath": "\\\\contoso\\folderB",
       "DestinationFolderStructure": "Year",
-      "OlderThanUnit": "Year",
-      "OlderThanQuantity": 1,
+      "OlderThan": {
+        "Quantity": 1,
+        "Unit": "Year"
+      },
       "?": "Move files older than 1 year to folder '2022'"
-    },
-    {
-      "ComputerName": null,
-      "SourceFolderPath": "\\\\contoso\\folderA",
-      "DestinationFolderPath": "\\\\contoso\\folderB",
-      "DestinationFolderStructure": "YYYYMM",
-      "OlderThanUnit": "Day",
-      "OlderThanQuantity": 0,
-      "?": "Move all files to folder '202201' (January 2022)"
     }
   ]
 }

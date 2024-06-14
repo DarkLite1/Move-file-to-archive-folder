@@ -31,10 +31,10 @@
         - Year        : Parent folder '2022'
         - YYYYMM      : Parent folder '202201'
 
-    .PARAMETER OlderThanUnit
-        Combined with OlderThanQuantity this reads:
-        OlderThanQuantity = 5
-        OlderThanUnit     = 'Day'
+    .PARAMETER OlderThan.Unit
+        Combined with OlderThan.Quantity this reads:
+        OlderThan.Quantity = 5
+        OlderThan.Unit     = 'Day'
         All files older than 5 days will be moved
 
         Valid options:
@@ -42,8 +42,8 @@
         - Month
         - Year
 
-    .PARAMETER OlderThanQuantity
-        A number to be used in combination with OlderThanUnit
+    .PARAMETER OlderThan.Quantity
+        A number to be used in combination with OlderThan.Unit
 
     .PARAMETER PSSessionConfiguration
         The version of PowerShell on the remote endpoint as returned by
@@ -119,7 +119,7 @@ Begin {
                     }
                 }
                 Default {
-                    throw "OlderThanUnit '$_' not supported"
+                    throw "OlderThan.Unit '$_' not supported"
                 }
             }
 
@@ -283,26 +283,30 @@ Begin {
             }
             #endregion
 
-            #region OlderThanUnit
-            if (-not $task.OlderThanUnit) {
-                throw "Input file '$ImportFile': No 'OlderThanUnit' found in one of the 'Tasks'."
+            #region OlderThan.Unit
+            if (-not $task.OlderThan.Unit) {
+                throw "Input file '$ImportFile': No 'OlderThan.Unit' found in one of the 'Tasks'."
             }
 
-            if ($task.OlderThanUnit -notMatch '^Day$|^Month$|^Year$') {
-                throw "Input file '$ImportFile': Value '$($task.OlderThanUnit)' is not supported by 'OlderThanUnit'. Valid options are 'Day', 'Month' or 'Year'."
+            if ($task.OlderThan.Unit -notMatch '^Day$|^Month$|^Year$') {
+                throw "Input file '$ImportFile': Value '$($task.OlderThan.Unit)' is not supported by 'OlderThan.Unit'. Valid options are 'Day', 'Month' or 'Year'."
             }
             #endregion
 
-            #region OlderThanQuantity
-            if ($task.PSObject.Properties.Name -notContains 'OlderThanQuantity') {
-                throw "Input file '$ImportFile' SourceFolderPath '$($task.SourceFolderPath)': Property 'OlderThanQuantity' not found. Use value number '0' to move all files."
+            #region OlderThan.Quantity
+            if ($task.PSObject.Properties.Name -notContains 'OlderThan') {
+                throw "Input file '$ImportFile' SourceFolderPath '$($task.SourceFolderPath)': Property 'OlderThan' with 'Quantity' and 'Unit' not found."
+            }
+
+            if ($task.OlderThan.PSObject.Properties.Name -notContains 'Quantity') {
+                throw "Input file '$ImportFile' SourceFolderPath '$($task.SourceFolderPath)': Property 'OlderThan.Quantity' not found. Use value number '0' to move all files."
             }
 
             try {
-                $null = [int]$task.OlderThanQuantity
+                $null = [int]$task.OlderThan.Quantity
             }
             catch {
-                throw "Input file '$ImportFile' SourceFolderPath '$($task.SourceFolderPath)': Property 'OlderThanQuantity' needs to be a number, the value '$($task.OlderThanQuantity)' is not supported. Use value number '0' to move all files."
+                throw "Input file '$ImportFile' SourceFolderPath '$($task.SourceFolderPath)': Property 'OlderThan.Quantity' needs to be a number, the value '$($task.OlderThan.Quantity)' is not supported. Use value number '0' to move all files."
             }
             #endregion
         }
@@ -351,11 +355,11 @@ Process {
                 ArgumentList = $task.SourceFolderPath,
                 $task.DestinationFolderPath,
                 $task.DestinationFolderStructure,
-                $task.OlderThanUnit,
-                $task.OlderThanQuantity
+                $task.OlderThan.Unit,
+                $task.OlderThan.Quantity
             }
 
-            $M = "Start job on '{0}' with SourceFolderPath '{1}' DestinationFolderPath '{2}' DestinationFolderStructure '{3}' OlderThanUnit '{4}' OlderThanQuantity '{5}'" -f $env:COMPUTERNAME,
+            $M = "Start job on '{0}' with SourceFolderPath '{1}' DestinationFolderPath '{2}' DestinationFolderStructure '{3}' OlderThan.Unit '{4}' OlderThan.Quantity '{5}'" -f $env:COMPUTERNAME,
             $invokeParams.ArgumentList[0], $invokeParams.ArgumentList[1],
             $invokeParams.ArgumentList[2], $invokeParams.ArgumentList[3],
             $invokeParams.ArgumentList[4]
@@ -408,10 +412,10 @@ Process {
                 $task.Job.Errors += $e.ToString()
                 $Error.Remove($e)
 
-                $M = "Task error on '{0}' with SourceFolderPath '{1}' DestinationFolderPath '{2}' DestinationFolderStructure '{3}' OlderThanUnit '{4}' OlderThanQuantity '{5}': {6}" -f
+                $M = "Task error on '{0}' with SourceFolderPath '{1}' DestinationFolderPath '{2}' DestinationFolderStructure '{3}' OlderThan.Unit '{4}' OlderThan.Quantity '{5}': {6}" -f
                 $task.ComputerName, $task.SourceFolderPath,
                 $task.DestinationFolderPath, $task.DestinationFolderStructure,
-                $task.OlderThanUnit, $task.OlderThanQuantity, $e.ToString()
+                $task.OlderThan.Unit, $task.OlderThan.Quantity, $e.ToString()
                 Write-Verbose $M; Write-EventLog @EventErrorParams -Message $M
             }
         }
@@ -525,17 +529,17 @@ End {
                 }
             ),
             $(
-                if ($task.OlderThanQuantity -eq 0) {
+                if ($task.OlderThan.Quantity -eq 0) {
                     'Move all files regardless their creation date'
                 }
                 else {
                     'Move files older than {0} {1}{2}' -f
-                    $task.OlderThanQuantity,
+                    $task.OlderThan.Quantity,
                     $(
-                        $task.OlderThanUnit.ToLower()
+                        $task.OlderThan.Unit.ToLower()
                     ),
                     $(
-                        if ($task.OlderThanQuantity -gt 1) { 's' }
+                        if ($task.OlderThan.Quantity -gt 1) { 's' }
                     )
                 }
             ),
@@ -575,11 +579,11 @@ End {
                 $Tasks | Where-Object { $_.Job.Errors }
             ) {
                 foreach ($e in $task.Job.Errors) {
-                    "Failed task with ComputerName '{0}' with SourceFolderPath '{1}' DestinationFolderPath '{2}' DestinationFolderStructure '{3}' OlderThanUnit '{4}' OlderThanQuantity '{5}': {6}" -f
+                    "Failed task with ComputerName '{0}' with SourceFolderPath '{1}' DestinationFolderPath '{2}' DestinationFolderStructure '{3}' OlderThan.Unit '{4}' OlderThan.Quantity '{5}': {6}" -f
                     $task.ComputerName, $task.SourceFolderPath,
                     $task.DestinationFolderPath,
                     $task.DestinationFolderStructure,
-                    $task.OlderThanUnit, $task.OlderThanQuantity, $e
+                    $task.OlderThan.Unit, $task.OlderThan.Quantity, $e
                 }
             }
 
