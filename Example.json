@@ -1,5 +1,9 @@
 {
-  "MailTo": ["bob@constoso.com"],
+  "SendMail": {
+    "To": ["bob@contoso.com"],
+    "When": "Always",
+    "?": "When: Never | OnlyOnError | OnlyOnErrorOrAction | Always"
+  },
   "MaxConcurrentJobs": 4,
   "Tasks": [
     {

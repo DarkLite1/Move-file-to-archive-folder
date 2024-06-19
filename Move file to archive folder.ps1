@@ -59,6 +59,7 @@ Param (
     [String]$ScriptName,
     [Parameter(Mandatory)]
     [String]$ImportFile,
+    [String]$MoveScript = "$PSScriptRoot\Move file.ps1",
     [String]$PSSessionConfiguration = 'PowerShell.7',
     [String]$LogFolder = "$env:POWERSHELL_LOG_FOLDER\File or folder\Move file to archive folder\$ScriptName",
     [String[]]$ScriptAdmin = @(
@@ -68,153 +69,6 @@ Param (
 )
 
 Begin {
-    $scriptBlock = {
-        Param (
-            [Parameter(Mandatory)]
-            [ValidateScript( { Test-Path $_ -PathType Container })]
-            [String]$Source,
-            [Parameter(Mandatory)]
-            [ValidateScript( { Test-Path $_ -PathType Container })]
-            [String]$Destination,
-            [Parameter(Mandatory)]
-            [ValidateSet('Year', 'Year\Month', 'Year-Month', 'YYYYMM')]
-            [String]$Structure,
-            [Parameter(Mandatory)]
-            [ValidateSet('Day', 'Month', 'Year')]
-            [String]$OlderThan,
-            [Parameter(Mandatory)]
-            [Int]$Quantity
-        )
-
-        Begin {
-            $Today = Get-Date
-
-            #region Create filter
-            Switch ($OlderThan) {
-                'Day' {
-                    Filter Select-FileHC {
-                        if (
-                            $_.CreationTime.Date.ToString('yyyyMMdd') -le $(($Today.AddDays( - $Quantity)).Date.ToString('yyyyMMdd'))
-                        ) {
-                            Write-Output $_
-                        }
-                    }
-                }
-                'Month' {
-                    Filter Select-FileHC {
-                        if (
-                            $_.CreationTime.Date.ToString('yyyyMM') -le $(($Today.AddMonths( - $Quantity)).Date.ToString('yyyyMM'))
-                        ) {
-                            Write-Output $_
-                        }
-                    }
-                }
-                'Year' {
-                    Filter Select-FileHC {
-                        if (
-                            $_.CreationTime.Date.ToString('yyyy') -le $(($Today.AddYears( - $Quantity)).Date.ToString('yyyy'))
-                        ) {
-                            Write-Output $_
-                        }
-                    }
-                }
-                Default {
-                    throw "OlderThan.Unit '$_' not supported"
-                }
-            }
-
-            if ($Quantity -eq 0) {
-                Filter Select-FileHC {
-                    Write-Output $_
-                }
-            }
-            #endregion
-        }
-
-        Process {
-            Get-ChildItem $Source -File | Select-FileHC | ForEach-Object {
-                $file = $_
-
-                $result = [PSCustomObject]@{
-                    Action                 = $null
-                    ComputerName           = $env:COMPUTERNAME
-                    SourceFileCreationTime = $file.CreationTime
-                    SourceFilePath         = $file.FullName
-                    DestinationFolderPath  = $Destination
-                    OlderThan              = "$Quantity $OlderThan{0}" -f $(
-                        if ($Quantity -gt 1) {
-                            's'
-                        }
-                    )
-                    Error                  = $null
-                }
-
-                $childPath = Switch ($Structure) {
-                    'Year' {
-                        [String]$file.CreationTime.Year
-                        break
-                    }
-                    'Year\Month' {
-                        [String]$file.CreationTime.Year + '\' + $file.CreationTime.ToString('MM')
-                        break
-                    }
-                    'Year-Month' {
-                        [String]$file.CreationTime.Year + '-' + $file.CreationTime.ToString('MM')
-                        break
-                    }
-                    'YYYYMM' {
-                        [String]$file.CreationTime.Year + $file.CreationTime.ToString('MM')
-                        break
-                    }
-                    Default {
-                        throw "Destination.ChildFolder '$_' not supported"
-                    }
-                }
-
-                $joinParams = @{
-                    Path      = $Destination
-                    ChildPath = $childPath
-                }
-                $result.DestinationFolderPath = Join-Path @joinParams
-
-                Try {
-                    $newParams = @{
-                        Path        = $result.DestinationFolderPath
-                        Type        = 'Directory'
-                        ErrorAction = 'Ignore'
-                    }
-                    $null = New-Item @newParams
-
-                    $moveParams = @{
-                        Path        = $file.FullName
-                        Destination = $result.DestinationFolderPath
-                        ErrorAction = 'Stop'
-                    }
-                    Move-Item @moveParams
-
-                    $result.Action = 'File moved'
-                }
-                Catch {
-                    Switch ($_) {
-                        { $_ -match 'file already exists' } {
-                            Move-Item @moveParams -Force
-                            $result.Action = 'File moved and overwritten'
-                            $global:error.RemoveAt(0)
-                            break
-                        }
-                        default {
-                            $result.Error = $_
-                            $global:error.RemoveAt(0)
-                        }
-                    }
-                }
-                Finally {
-                    $result
-                }
-            }
-        }
-    }
-
     Try {
         Import-EventLogParamsHC -Source $ScriptName
         Write-EventLog @EventStartParams
@@ -235,6 +89,19 @@ Begin {
         }
         #endregion
 
+        #region Test script path exists
+        try {
+            $params = @{
+                Path        = $MoveScript
+                ErrorAction = 'Stop'
+            }
+            $moveScriptPath = (Get-Item @params).FullName
+        }
+        catch {
+            throw "Move script with path '$($MoveScript)' not found"
+        }
+        #endregion
+
         #region Import .json file
         $M = "Import .json file '$ImportFile'"
         Write-Verbose $M; Write-EventLog @EventOutParams -Message $M
@@ -243,87 +110,98 @@ Begin {
         #endregion
 
         #region Test .json file properties
-        if (-not ($MailTo = $file.MailTo)) {
-            throw "Input file '$ImportFile': No 'MailTo' addresses found."
-        }
-
-        if (-not ($MaxConcurrentJobs = $file.MaxConcurrentJobs)) {
-            throw "Property 'MaxConcurrentJobs' not found"
-        }
         try {
-            $null = $MaxConcurrentJobs.ToInt16($null)
-        }
-        catch {
-            throw "Property 'MaxConcurrentJobs' needs to be a number, the value '$MaxConcurrentJobs' is not supported."
-        }
+            @(
+                'SendMail', 'MaxConcurrentJobs', 'Tasks'
+            ).where(
+                { -not $file.$_ }
+            ).foreach(
+                { throw "Property '$_' not found" }
+            )
 
-        if (-not ($Tasks = $file.Tasks)) {
-            throw "Input file '$ImportFile': No 'Tasks' found."
-        }
-        foreach ($task in $Tasks) {
-            #region SourceFolder
-            if (-not $task.SourceFolder) {
-                throw "Input file '$ImportFile': No 'SourceFolder' found in one of the 'Tasks'."
-            }
-            #endregion
+            @(
+                'To', 'When'
+            ).where(
+                { -not $file.SendMail.$_ }
+            ).foreach(
+                { throw "Property 'SendMail.$_' not found" }
+            )
 
-            #region Destination.Folder
-            if (-not $task.Destination.Folder) {
-                throw "Input file '$ImportFile': No 'Destination.Folder' found in one of the 'Tasks'."
-            }
-            #endregion
-
-            #region Destination.ChildFolder
-            if (-not $task.Destination.ChildFolder) {
-                throw "Input file '$ImportFile': No 'Destination.ChildFolder' found in one of the 'Tasks'."
-            }
-
-            if ($task.Destination.ChildFolder -notMatch '^Year-Month$|^Year\\Month$|^Year$|^YYYYMM$') {
-                throw "Input file '$ImportFile': Value '$($task.Destination.ChildFolder)' is not supported by 'Destination.ChildFolder'. Valid options are 'Year-Month', 'Year\Month', 'Year' or 'YYYYMM'."
-            }
-            #endregion
-
-            #region OlderThan
-            if (-not $task.OlderThan.Unit) {
-                throw "Input file '$ImportFile': No 'OlderThan.Unit' found in one of the 'Tasks'."
-            }
-
-            if ($task.OlderThan.Unit -notMatch '^Day$|^Month$|^Year$') {
-                throw "Input file '$ImportFile': Value '$($task.OlderThan.Unit)' is not supported by 'OlderThan.Unit'. Valid options are 'Day', 'Month' or 'Year'."
-            }
-
-            if ($task.PSObject.Properties.Name -notContains 'OlderThan') {
-                throw "Input file '$ImportFile' SourceFolder '$($task.SourceFolder)': Property 'OlderThan' with 'Quantity' and 'Unit' not found."
-            }
-
-            if ($task.OlderThan.PSObject.Properties.Name -notContains 'Quantity') {
-                throw "Input file '$ImportFile' SourceFolder '$($task.SourceFolder)': Property 'OlderThan.Quantity' not found. Use value number '0' to move all files."
-            }
-
+            $MaxConcurrentJobs = $file.MaxConcurrentJobs
             try {
-                $null = [int]$task.OlderThan.Quantity
+                $null = $MaxConcurrentJobs.ToInt16($null)
             }
             catch {
-                throw "Input file '$ImportFile' SourceFolder '$($task.SourceFolder)': Property 'OlderThan.Quantity' needs to be a number, the value '$($task.OlderThan.Quantity)' is not supported. Use value number '0' to move all files."
-            }
-            #endregion
-
-            #region Option
-            if ($task.PSObject.Properties.Name -notContains 'Option') {
-                throw "Input file '$ImportFile' SourceFolder '$($task.SourceFolder)': Property 'Option' not found."
+                throw "Property 'MaxConcurrentJobs' needs to be a number, the value '$MaxConcurrentJobs' is not supported."
             }
 
-            if ($task.Option.PSObject.Properties.Name -notContains 'DuplicateFile') {
-                throw "Input file '$ImportFile' SourceFolder '$($task.SourceFolder)': Property 'Option.DuplicateFile' not found."
-            }
+            $Tasks = $file.Tasks
+            foreach ($task in $Tasks) {
+                @(
+                    'SourceFolder', 'Destination', 'OlderThan', 'Option'
+                ).where(
+                    { -not $task.$_ }
+                ).foreach(
+                    { throw "Property 'Tasks.$_' not found" }
+                )
 
-            if (
-                ($task.Option.DuplicateFile) -and
-                ($task.Option.DuplicateFile -notMatch '^OverwriteFile$|^RenameFile$')
-            ) {
-                throw "Input file '$ImportFile': Value '$($task.Option.DuplicateFile)' is not supported by 'Option.DuplicateFile'. Valid options are NULL, 'OverwriteFile' or 'RenameFile'."
+                @(
+                    'Folder', 'ChildFolder'
+                ).where(
+                    { -not $task.Destination.$_ }
+                ).foreach(
+                    { throw "Property 'Tasks.Destination.$_' not found" }
+                )
+
+                if ($task.Destination.ChildFolder -notMatch '^Year-Month$|^Year\\Month$|^Year$|^YYYYMM$') {
+                    throw "Input file '$ImportFile': Value '$($task.Destination.ChildFolder)' is not supported by 'Destination.ChildFolder'. Valid options are 'Year-Month', 'Year\Month', 'Year' or 'YYYYMM'."
+                }
+
+                #region OlderThan
+                if (-not $task.OlderThan.Unit) {
+                    throw "Input file '$ImportFile': No 'OlderThan.Unit' found in one of the 'Tasks'."
+                }
+
+                if ($task.OlderThan.Unit -notMatch '^Day$|^Month$|^Year$') {
+                    throw "Input file '$ImportFile': Value '$($task.OlderThan.Unit)' is not supported by 'OlderThan.Unit'. Valid options are 'Day', 'Month' or 'Year'."
+                }
+
+                if ($task.PSObject.Properties.Name -notContains 'OlderThan') {
+                    throw "Input file '$ImportFile' SourceFolder '$($task.SourceFolder)': Property 'OlderThan' with 'Quantity' and 'Unit' not found."
+                }
+
+                if ($task.OlderThan.PSObject.Properties.Name -notContains 'Quantity') {
+                    throw "Input file '$ImportFile' SourceFolder '$($task.SourceFolder)': Property 'OlderThan.Quantity' not found. Use value number '0' to move all files."
+                }
+
+                try {
+                    $null = [int]$task.OlderThan.Quantity
+                }
+                catch {
+                    throw "Input file '$ImportFile' SourceFolder '$($task.SourceFolder)': Property 'OlderThan.Quantity' needs to be a number, the value '$($task.OlderThan.Quantity)' is not supported. Use value number '0' to move all files."
+                }
+                #endregion
+
+                #region Option
+                if ($task.PSObject.Properties.Name -notContains 'Option') {
+                    throw "Input file '$ImportFile' SourceFolder '$($task.SourceFolder)': Property 'Option' not found."
+                }
+
+                if ($task.Option.PSObject.Properties.Name -notContains 'DuplicateFile') {
+                    throw "Input file '$ImportFile' SourceFolder '$($task.SourceFolder)': Property 'Option.DuplicateFile' not found."
+                }
+
+                if (
+                    ($task.Option.DuplicateFile) -and
+                    ($task.Option.DuplicateFile -notMatch '^OverwriteFile$|^RenameFile$')
+                ) {
+                    throw "Input file '$ImportFile': Value '$($task.Option.DuplicateFile)' is not supported by 'Option.DuplicateFile'. Valid options are NULL, 'OverwriteFile' or 'RenameFile'."
+                }
+                #endregion
             }
-            #endregion
+        }
+        catch {
+            throw "Input file '$ImportFile': $_"
         }
         #endregion
 
@@ -342,7 +220,6 @@ Begin {
             #region Add properties
             $task | Add-Member -NotePropertyMembers @{
                 Job = @{
-                    Object  = $null
                     Results = @()
                     Errors  = @()
                 }
@@ -350,8 +227,6 @@ Begin {
             #endregion
         }
         #endregion
-
-        $mailParams = @{ }
     }
     Catch {
         Write-Warning $_
@@ -363,99 +238,94 @@ Begin {
 
 Process {
     Try {
-        #region Start jobs to move files to archive folder
-        foreach ($task in $Tasks) {
-            $invokeParams = @{
-                ScriptBlock  = $scriptBlock
-                ArgumentList = $task.SourceFolder,
-                $task.Destination.Folder,
-                $task.Destination.ChildFolder,
-                $task.OlderThan.Unit,
-                $task.OlderThan.Quantity
-            }
+        $scriptBlock = {
+            try {
+                $task = $_
 
-            $M = "Start job on '{0}' with SourceFolder '{1}' Destination.Folder '{2}' Destination.ChildFolder '{3}' OlderThan.Unit '{4}' OlderThan.Quantity '{5}'" -f $env:COMPUTERNAME,
-            $invokeParams.ArgumentList[0], $invokeParams.ArgumentList[1],
-            $invokeParams.ArgumentList[2], $invokeParams.ArgumentList[3],
-            $invokeParams.ArgumentList[4]
-            Write-Verbose $M; Write-EventLog @EventVerboseParams -Message $M
-
-            #region Start job
-            $computerName = $task.ComputerName
-
-            $task.Job.Object = if (
-                $computerName -eq $ENV:COMPUTERNAME
-            ) {
-                Start-Job @invokeParams
-            }
-            else {
-                $invokeParams += @{
-                    ConfigurationName = $PSSessionConfiguration
-                    ComputerName      = $computerName
-                    AsJob             = $true
+                #region Declare variables for code running in parallel
+                if (-not $MaxConcurrentJobs) {
+                    $task = $using:task
+                    $moveScriptPath = $using:moveScriptPath
+                    $PSSessionConfiguration = $using:PSSessionConfiguration
+                    $EventVerboseParams = $using:EventVerboseParams
                 }
-                Invoke-Command @invokeParams
-            }
-            #endregion
+                #endregion
 
-            #region Wait for max running jobs
-            $waitJobParams = @{
-                Job        = $Tasks.Job.Object | Where-Object { $_ }
-                MaxThreads = $MaxConcurrentJobs
+                #region Create job parameters
+                $invokeParams = @{
+                    FilePath     = $moveScriptPath
+                    ArgumentList = $task.SourceFolder,
+                    $task.Destination.Folder,
+                    $task.Destination.ChildFolder,
+                    $task.OlderThan.Unit,
+                    $task.OlderThan.Quantity,
+                    $task.Option.DuplicateFile
+                }
+
+                $M = "Start job on '{0}' with SourceFolder '{1}' Destination.Folder '{2}' Destination.ChildFolder '{3}' OlderThan.Unit '{4}' OlderThan.Quantity '{5}' Option.DuplicateFile '{6}'" -f $env:COMPUTERNAME,
+                $invokeParams.ArgumentList[0], $invokeParams.ArgumentList[1],
+                $invokeParams.ArgumentList[2], $invokeParams.ArgumentList[3],
+                $invokeParams.ArgumentList[4], $invokeParams.ArgumentList[5]
+                Write-Verbose $M; Write-EventLog @EventVerboseParams -Message $M
+                #endregion
+
+                #region Start job
+                $computerName = $task.ComputerName
+
+                $task.Job.Results += if (
+                    $computerName -eq $ENV:COMPUTERNAME
+                ) {
+                    $params = $invokeParams.ArgumentList
+                    & $invokeParams.FilePath @params
+                }
+                else {
+                    $invokeParams += @{
+                        ConfigurationName = $PSSessionConfiguration
+                        ComputerName      = $computerName
+                        ErrorAction       = 'Stop'
+                    }
+                    Invoke-Command @invokeParams
+                }
+                #endregion
+
+                #region Verbose
+                $M = "Task on '{0}' with SourceFolder '{1}' Destination.Folder '{2}' Destination.ChildFolder '{3}' OlderThan.Unit '{4}' OlderThan.Quantity '{5}' Option.DuplicateFile '{6}'. Results: {7}" -f $env:COMPUTERNAME,
+                $invokeParams.ArgumentList[0], $invokeParams.ArgumentList[1],
+                $invokeParams.ArgumentList[2], $invokeParams.ArgumentList[3],
+                $invokeParams.ArgumentList[4], $invokeParams.ArgumentList[5],
+                $task.Job.Results.Count
+
+                if ($errorCount = $task.Job.Results.Where({ $_.Error }).Count) {
+                    $M += " , Errors: {0}" -f $errorCount
+                    Write-Warning $M
+                    Write-EventLog @EventErrorParams -Message $M
+                }
+                else {
+                    Write-Verbose $M
+                    Write-EventLog @EventVerboseParams -Message $M
+                }
+                #endregion
             }
-            Wait-MaxRunningJobsHC @waitJobParams
-            #endregion
+            catch {
+                $task.Job.Errors += $_
+                $Error.RemoveAt(0)
+            }
         }
-        #endregion
 
-        #region Wait for all jobs to finish
-        Write-Verbose 'Wait for all jobs to finish'
-
-        $null = $Tasks.Job.Object | Wait-Job
-        #endregion
-
-        #region Get job results and job errors
-        foreach ($task in $Tasks) {
-            $jobErrors = @()
-            $receiveParams = @{
-                ErrorVariable = 'jobErrors'
-                ErrorAction   = 'SilentlyContinue'
-            }
-            $task.Job.Results += $task.Job.Object | Receive-Job @receiveParams
-
-            foreach ($e in $jobErrors) {
-                $task.Job.Errors += $e.ToString()
-                $Error.Remove($e)
-
-                $M = "Task error on '{0}' with SourceFolder '{1}' Destination.Folder '{2}' Destination.ChildFolder '{3}' OlderThan.Unit '{4}' OlderThan.Quantity '{5}': {6}" -f
-                $task.ComputerName, $task.SourceFolder,
-                $task.Destination.Folder, $task.Destination.ChildFolder,
-                $task.OlderThan.Unit, $task.OlderThan.Quantity, $e.ToString()
-                Write-Verbose $M; Write-EventLog @EventErrorParams -Message $M
+        #region Run code serial or parallel
+        $foreachParams = if ($MaxConcurrentJobs -eq 1) {
+            @{
+                Process = $scriptBlock
             }
         }
-        #endregion
-
-        #region Export job results to Excel file
-        if ($jobResults = $Tasks.Job.Results | Where-Object { $_ }) {
-            $M = "Export $($jobResults.Count) rows to Excel"
-            Write-Verbose $M; Write-EventLog @EventOutParams -Message $M
-
-            $excelParams = @{
-                Path               = $logFile + '- Log.xlsx'
-                WorksheetName      = 'Overview'
-                TableName          = 'Overview'
-                NoNumberConversion = '*'
-                AutoSize           = $true
-                FreezeTopRow       = $true
+        else {
+            @{
+                Parallel      = $scriptBlock
+                ThrottleLimit = $MaxConcurrentJobs
             }
-            $jobResults |
-            Select-Object -Property * -ExcludeProperty 'PSComputerName',
-            'RunSpaceId', 'PSShowComputerName' |
-            Export-Excel @excelParams
-
-            $mailParams.Attachments = $excelParams.Path
         }
+
+        $Tasks | ForEach-Object @foreachParams
         #endregion
     }
     Catch {
@@ -468,40 +338,131 @@ Process {
 
 End {
     try {
-        #region Send mail to user
+        $mailParams = @{ }
 
-        #region Count results, errors, ...
-        $counter = @{
-            movedFiles      = (
-                $jobResults |
-                Where-Object { $_.Action -like 'File moved*' } |
-                Measure-Object
-            ).Count
-            moveFilesErrors = ($jobResults.Error | Measure-Object).Count
-            jobErrors       = ($Tasks.job.Errors | Measure-Object).Count
-            systemErrors    = ($Error.Exception.Message | Measure-Object).Count
+        #region Export job results to Excel file
+        $excelWorksheet = @{
+            Overview = @()
+            Errors   = @()
         }
+
+        foreach ($task in $Tasks) {
+            if ($task.Job.Errors) {
+                $excelWorksheet.Errors += $task.Job.Errors |
+                Select-Object -Property @{
+                    Name       = 'ComputerName'
+                    Expression = { $task.ComputerName }
+                },
+                @{
+                    Name       = 'SourceFolder'
+                    Expression = { $task.SourceFolder }
+                },
+                @{
+                    Name       = 'Error'
+                    Expression = { $_ }
+                }
+            }
+
+            if ($task.Job.Results) {
+                $excelWorksheet.Overview += $task.Job.Results |
+                Select-Object -Property @{
+                    Name       = 'ComputerName'
+                    Expression = { $task.ComputerName }
+                },
+                @{
+                    Name       = 'OlderThan'
+                    Expression = {
+                        '{0} {1}{2}' -f
+                        $task.OlderThan.Quantity,
+                        $task.OlderThan.Unit,
+                        $(if ($task.OlderThan.Quantity -gt 1) { 's' })
+                    }
+                },
+                @{
+                    Name       = 'SourceFolder'
+                    Expression = { $task.SourceFolder }
+                },
+                @{
+                    Name       = 'DestinationFolder'
+                    Expression = { $_.DestinationFolderPath }
+                },
+                @{
+                    Name       = 'FileName'
+                    Expression = { $_.FileName }
+                },
+                @{
+                    Name       = 'FileCreationTime'
+                    Expression = { $_.FileCreationTime }
+                },
+                @{
+                    Name       = 'Action'
+                    Expression = { $_.Action }
+                },
+                @{
+                    Name       = 'Error'
+                    Expression = { $_.Error }
+                }
+            }
+        }
+
+        $excelParams = @{
+            Path               = $logFile + '- Log.xlsx'
+            NoNumberConversion = '*'
+            AutoSize           = $true
+            FreezeTopRow       = $true
+        }
+
+        if ($excelWorksheet.Overview) {
+            $excelParams.TableName = $excelParams.WorksheetName = 'Overview'
+
+            $M = "Export {0} rows to Excel sheet '{1}'" -f
+            $excelWorksheet.Overview.Count, $excelParams.WorksheetName
+            Write-Verbose $M; Write-EventLog @EventOutParams -Message $M
+
+            $excelWorksheet.Overview | Export-Excel @excelParams
+
+            $mailParams.Attachments = $excelParams.Path
+        }
+
+        if ($excelWorksheet.Errors) {
+            $excelParams.TableName = $excelParams.WorksheetName = 'Errors'
+
+            $M = "Export {0} rows to Excel sheet '{1}'" -f
+            $excelWorksheet.Overview.Count, $excelParams.WorksheetName
+            Write-Verbose $M; Write-EventLog @EventOutParams -Message $M
+
+            $excelWorksheet.Errors | Export-Excel @excelParams
+
+            $mailParams.Attachments = $excelParams.Path
+        }
+        #endregion
+
+        #region Count results & errors
+        $counter = @{
+            movedFiles     = $Tasks.Job.Results.where(
+                { $_.Action -like 'File moved*' }).Count
+            moveFileErrors = $Tasks.Job.Results.where({ $_.Error }).Count
+            jobErrors      = $Tasks.Job.where({ $_.Error }).Count
+            systemErrors   = ($Error.Exception.Message | Measure-Object).Count
+        }
+
+        $totalErrorCount = $counter.moveFileErrors + $counter.jobErrors +
+        $counter.systemErrors
         #endregion
 
         #region Mail subject and priority
         $mailParams.Priority = 'Normal'
 
-        $mailParams.Subject = '{0} file{1} moved' -f $counter.movedFiles, $(
-            if ($counter.movedFiles -gt 1) { 's' }
-        )
+        $mailParams.Subject = '{0} file{1} moved' -f
+        $counter.movedFiles, $(if ($counter.movedFiles -gt 1) { 's' })
 
-        if (
-            $totalErrorCount = $counter.moveFilesErrors + $counter.jobErrors +
-            $counter.systemErrors
-        ) {
+        if ($totalErrorCount) {
             $mailParams.Priority = 'High'
-            $mailParams.Subject += ", $totalErrorCount error{0}" -f $(
-                if ($totalErrorCount -gt 1) { 's' }
-            )
+            $mailParams.Subject += ", $totalErrorCount error{0}" -f
+            $(if ($totalErrorCount -gt 1) { 's' })
         }
         #endregion
 
-        #region Create html lists
         #region System errors HTML list
         $systemErrorsHtmlList = if ($counter.systemErrors) {
             "<p>Detected <b>{0} non terminating error{1}</b>:{2}</p>" -f $counter.systemErrors,
@@ -588,32 +549,41 @@ End {
         #endregion
 
         #region Job errors HTML list
-        $jobErrorsHtmlList = if ($counter.jobErrors) {
-            $errorList = foreach (
-                $task in
-                $Tasks | Where-Object { $_.Job.Errors }
-            ) {
-                foreach ($e in $task.Job.Errors) {
-                    "Failed task with ComputerName '{0}' with SourceFolder '{1}' Destination.Folder '{2}' Destination.ChildFolder '{3}' OlderThan.Unit '{4}' OlderThan.Quantity '{5}': {6}" -f
-                    $task.ComputerName, $task.SourceFolder,
-                    $task.Destination.Folder,
-                    $task.Destination.ChildFolder,
-                    $task.OlderThan.Unit, $task.OlderThan.Quantity, $e
-                }
-            }
-
-            $errorList |
-            ConvertTo-HtmlListHC -Spacing Wide -Header 'Job errors:'
+        $jobErrorsHtml = if ($counter.jobErrors) {
+            '<p>Detected <b>{0} job errors</b>.</p>' -f
+            $counter.jobErrors
         }
         #endregion
+
+        #region Check to send mail to user
+        $sendMailToUser = $false
+
+        if (
+            (
+                ($file.SendMail.When -eq 'Always')
+            ) -or
+            (
+                ($file.SendMail.When -eq 'OnlyOnError') -and
+                $totalErrorCount
+            ) -or
+            (
+                ($file.SendMail.When -eq 'OnlyOnErrorOrAction') -and
+                (
+                    ($counter.movedFiles) -or $totalErrorCount
+                )
+            )
+        ) {
+            $sendMailToUser = $true
+        }
         #endregion
 
+        #region Send mail to user
         $mailParams += @{
-            To        = $MailTo
+            To        = $file.SendMail.To
             Bcc       = $ScriptAdmin
             Message   = "
                 $systemErrorsHtmlList
-                $jobErrorsHtmlList
+                $jobErrorsHtml
                 <p>Summary:</p>
                 $jobResultsHtmlList"
             LogFolder = $LogParams.LogFolder
@@ -627,7 +597,25 @@ End {
         }
 
         Get-ScriptRuntimeHC -Stop
-        Send-MailHC @mailParams
+
+        if ($sendMailToUser) {
+            Write-Verbose 'Send e-mail to the user'
+
+            if ($totalErrorCount) {
+                $mailParams.Bcc = $ScriptAdmin
+            }
+            Send-MailHC @mailParams
+        }
+        else {
+            Write-Verbose 'Send no e-mail to the user'
+
+            if ($totalErrorCount) {
+                Write-Verbose 'Send e-mail to admin only with errors'
+
+                $mailParams.To = $ScriptAdmin
+                Send-MailHC @mailParams
+            }
+        }
         #endregion
     }
     catch {

@@ -1,5 +1,5 @@
 #Requires -Modules Pester
-#Requires -Version 5.1
+#Requires -Version 7
 
 BeforeAll {
     $testFolder = @{
@@ -7,12 +7,32 @@ BeforeAll {
         Destination = (New-Item 'TestDrive:/Destination' -ItemType Directory).FullName
     }
 
+    $testData = @(
+        [PSCustomObject]@{
+            FileName              = 'File1.txt'
+            FileCreationTime      = Get-Date
+            DestinationFolderPath = 'z:\Folder'
+            Action                = 'File moved'
+            Error                 = $null
+        }
+        [PSCustomObject]@{
+            FileName              = 'File2.txt'
+            FileCreationTime      = Get-Date
+            DestinationFolderPath = 'z:\Folder'
+            Action                = $null
+            Error                 = 'Failed to move'
+        }
+    )
+
     $testInputFile = @{
-        MailTo            = 'bob@contoso.com'
-        MaxConcurrentJobs = 5
+        SendMail          = @{
+            To   = 'bob@contoso.com'
+            When = 'Always'
+        }
+        MaxConcurrentJobs = 1
         Tasks             = @(
             @{
-                ComputerName = $env:COMPUTERNAME
+                ComputerName = 'PC1'
                 SourceFolder = $testFolder.Source
                 Destination  = @{
                     Folder      = $testFolder.Destination
@@ -37,9 +57,16 @@ BeforeAll {
     $testScript = $PSCommandPath.Replace('.Tests.ps1', '.ps1')
     $testParams = @{
         ScriptName  = 'Test (Brecht)'
+        MoveScript  = (New-Item 'TestDrive:/script.ps1' -ItemType File).FullName
         ImportFile  = $testOutParams.FilePath
         LogFolder   = New-Item 'TestDrive:/log' -ItemType Directory
         ScriptAdmin = 'admin@contoso.com'
+    }
+
+    Mock Invoke-Command {
+        $testData
+    } -ParameterFilter {
+        $FilePath -eq $testParams.MoveScript
     }
 
     Mock Send-MailHC
@@ -69,6 +96,22 @@ Describe 'send an e-mail to the admin when' {
             ($Message -like '*Failed creating the log folder*')
         }
     }
+    It 'the file MoveScript cannot be found' {
+        $testNewParams = Copy-ObjectHC $testParams
+        $testNewParams.MoveScript = 'c:\upDoesNotExist.ps1'
+
+        $testInputFile | ConvertTo-Json -Depth 7 |
+        Out-File @testOutParams
+
+        .$testScript @testNewParams
+
+        Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
+                (&$MailAdminParams) -and ($Message -like "*Move script with path '$($testNewParams.MoveScript)' not found*")
+        }
+        Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
+            $EntryType -eq 'Error'
+        }
+    }
     Context 'the ImportFile' {
         It 'is not found' {
             $testNewParams = $testParams.clone()
@@ -84,9 +127,85 @@ Describe 'send an e-mail to the admin when' {
             }
         }
         Context 'property' {
-            It 'MailTo is missing' {
+            It '<_> not found' -ForEach @(
+                'SendMail', 'MaxConcurrentJobs', 'Tasks'
+            ) {
                 $testNewInputFile = Copy-ObjectHC $testInputFile
-                $testNewInputFile.MailTo = $null
+                $testNewInputFile.$_ = $null
+
+                $testNewInputFile | ConvertTo-Json -Depth 7 |
+                Out-File @testOutParams
+
+                .$testScript @testParams
+
+                Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
+                    (&$MailAdminParams) -and
+                    ($Message -like "*$ImportFile*Property '$_' not found*")
+                }
+                Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
+                    $EntryType -eq 'Error'
+                }
+            }
+            It 'SendMail.<_> not found' -ForEach @(
+                'To', 'When'
+            ) {
+                $testNewInputFile = Copy-ObjectHC $testInputFile
+                $testNewInputFile.SendMail.$_ = $null
+
+                $testNewInputFile | ConvertTo-Json -Depth 7 |
+                Out-File @testOutParams
+
+                .$testScript @testParams
+
+                Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
+                        (&$MailAdminParams) -and
+                        ($Message -like "*$ImportFile*Property 'SendMail.$_' not found*")
+                }
+                Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
+                    $EntryType -eq 'Error'
+                }
+            }
+            It 'Tasks.<_> not found' -ForEach @(
+                'SourceFolder', 'Destination', 'OlderThan', 'Option'
+            ) {
+                $testNewInputFile = Copy-ObjectHC $testInputFile
+                $testNewInputFile.Tasks[0].$_ = $null
+
+                $testNewInputFile | ConvertTo-Json -Depth 7 |
+                Out-File @testOutParams
+
+                .$testScript @testParams
+
+                Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
+                        (&$MailAdminParams) -and
+                        ($Message -like "*$ImportFile*Property 'Tasks.$_' not found*")
+                }
+                Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
+                    $EntryType -eq 'Error'
+                }
+            }
+            It 'Tasks.Destination.<_> not found' -ForEach @(
+                'Folder', 'ChildFolder'
+            ) {
+                $testNewInputFile = Copy-ObjectHC $testInputFile
+                $testNewInputFile.Tasks[0].Destination.$_ = $null
+
+                $testNewInputFile | ConvertTo-Json -Depth 7 |
+                Out-File @testOutParams
+
+                .$testScript @testParams
+
+                Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
+                        (&$MailAdminParams) -and
+                        ($Message -like "*$ImportFile*Property 'Tasks.Destination.$_' not found*")
+                }
+                Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
+                    $EntryType -eq 'Error'
+                }
+            }
+            It 'Destination.ChildFolder not supported' {
+                $testNewInputFile = Copy-ObjectHC $testInputFile
+                $testNewInputFile.Tasks[0].Destination.ChildFolder = 'Wrong'
 
                 $testNewInputFile | ConvertTo-Json -Depth 5 |
                 Out-File @testOutParams
@@ -94,137 +213,17 @@ Describe 'send an e-mail to the admin when' {
                 .$testScript @testParams
 
                 Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                    (&$MailAdminParams) -and ($Message -like "*$ImportFile*No 'MailTo' addresses found*")
+            (&$MailAdminParams) -and ($Message -like "*$ImportFile*Value 'wrong' is not supported by 'Destination.ChildFolder'. Valid options are 'Year-Month', 'Year\Month', 'Year' or 'YYYYMM'.*")
                 }
                 Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                     $EntryType -eq 'Error'
-                }
-            }
-            It 'Tasks is missing' {
-                $testNewInputFile = Copy-ObjectHC $testInputFile
-                $testNewInputFile.Tasks = $null
-
-                $testNewInputFile | ConvertTo-Json -Depth 5 |
-                Out-File @testOutParams
-
-                .$testScript @testParams
-
-                Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                    (&$MailAdminParams) -and ($Message -like "*$ImportFile*No 'Tasks' found*")
-                }
-                Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                    $EntryType -eq 'Error'
-                }
-            }
-            It 'SourceFolder is missing' {
-                $testNewInputFile = Copy-ObjectHC $testInputFile
-                $testNewInputFile.Tasks[0].SourceFolder = $null
-
-                $testNewInputFile | ConvertTo-Json -Depth 5 |
-                Out-File @testOutParams
-
-                .$testScript @testParams
-
-                Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                    (&$MailAdminParams) -and ($Message -like "*$ImportFile*No 'SourceFolder' found*")
-                }
-                Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                    $EntryType -eq 'Error'
-                }
-            }
-            Context 'Destination' {
-                It 'Destination.Folder is missing' {
-                    $testNewInputFile = Copy-ObjectHC $testInputFile
-                    $testNewInputFile.Tasks[0].Destination.Folder = $null
-
-                    $testNewInputFile | ConvertTo-Json -Depth 5 |
-                    Out-File @testOutParams
-
-                    .$testScript @testParams
-
-                    Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                    (&$MailAdminParams) -and ($Message -like "*$ImportFile*No 'Destination.Folder' found*")
-                    }
-                    Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                        $EntryType -eq 'Error'
-                    }
-                }
-                Context 'Destination.ChildFolder' {
-                    It 'is missing' {
-                        $testNewInputFile = Copy-ObjectHC $testInputFile
-                        $testNewInputFile.Tasks = @(
-                            @{
-                                SourceFolder = '\\contoso\folderA'
-                                Destination  = @{
-                                    Folder = '\\contoso\folderB'
-                                    # ChildFolder = "Year\\Month"
-                                }
-                                OlderThan    = @{
-                                    Quantity = 1
-                                    Unit     = 'Month'
-                                }
-                            }
-                        )
-
-                        $testNewInputFile | ConvertTo-Json -Depth 5 |
-                        Out-File @testOutParams
-
-                        .$testScript @testParams
-
-                        Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                    (&$MailAdminParams) -and ($Message -like "*$ImportFile*No 'Destination.ChildFolder' found*")
-                        }
-                        Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                            $EntryType -eq 'Error'
-                        }
-                    }
-                    It 'is not supported' {
-                        $testNewInputFile = Copy-ObjectHC $testInputFile
-                        $testNewInputFile.Tasks = @(
-                            @{
-                                SourceFolder = '\\contoso\folderA'
-                                Destination  = @{
-                                    Folder      = '\\contoso\folderB'
-                                    ChildFolder = 'Wrong'
-                                }
-                                OlderThan    = @{
-                                    Quantity = 1
-                                    Unit     = 'Month'
-                                }
-                            }
-                        )
-
-                        $testNewInputFile | ConvertTo-Json -Depth 5 |
-                        Out-File @testOutParams
-
-                        .$testScript @testParams
-
-                        Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                    (&$MailAdminParams) -and ($Message -like "*$ImportFile*Value 'wrong' is not supported by 'Destination.ChildFolder'. Valid options are 'Year-Month', 'Year\Month', 'Year' or 'YYYYMM'.*")
-                        }
-                        Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                            $EntryType -eq 'Error'
-                        }
-                    }
                 }
             }
             Context 'OlderThan' {
                 Context 'OlderThan.Unit' {
-                    It 'is missing' {
+                    It 'not found' {
                         $testNewInputFile = Copy-ObjectHC $testInputFile
-                        $testNewInputFile.Tasks = @(
-                            @{
-                                SourceFolder = '\\contoso\folderA'
-                                Destination  = @{
-                                    Folder      = '\\contoso\folderB'
-                                    ChildFolder = 'Year\Month'
-                                }
-                                OlderThan    = @{
-                                    Quantity = 1
-                                    # Unit     = 'Month'
-                                }
-                            }
-                        )
+                        $testNewInputFile.Tasks[0].OlderThan.Remove("Unit")
 
                         $testNewInputFile | ConvertTo-Json -Depth 5 |
                         Out-File @testOutParams
@@ -240,19 +239,7 @@ Describe 'send an e-mail to the admin when' {
                     }
                     It 'is not supported' {
                         $testNewInputFile = Copy-ObjectHC $testInputFile
-                        $testNewInputFile.Tasks = @(
-                            @{
-                                SourceFolder = '\\contoso\folderA'
-                                Destination  = @{
-                                    Folder      = '\\contoso\folderB'
-                                    ChildFolder = 'Year\Month'
-                                }
-                                OlderThan    = @{
-                                    Quantity = 1
-                                    Unit     = 'notSupported'
-                                }
-                            }
-                        )
+                        $testNewInputFile.Tasks[0].OlderThan.Unit = 'notSupported'
 
                         $testNewInputFile | ConvertTo-Json -Depth 5 |
                         Out-File @testOutParams
@@ -268,7 +255,7 @@ Describe 'send an e-mail to the admin when' {
                     }
                 }
                 Context 'OlderThan.Quantity' {
-                    It 'is missing' {
+                    It 'not found' {
                         $testNewInputFile = Copy-ObjectHC $testInputFile
                         $testNewInputFile.Tasks[0].OlderThan.Remove("Quantity")
 
@@ -302,10 +289,10 @@ Describe 'send an e-mail to the admin when' {
                     }
                 }
             }
-            Context 'Option' {
-                It 'Option is missing' {
+            Context 'Option.DuplicateFile' {
+                It 'not found' {
                     $testNewInputFile = Copy-ObjectHC $testInputFile
-                    $testNewInputFile.Tasks[0].Remove('Option')
+                    $testNewInputFile.Tasks[0].Option.Remove('DuplicateFile')
 
                     $testNewInputFile | ConvertTo-Json -Depth 5 |
                     Out-File @testOutParams
@@ -313,311 +300,112 @@ Describe 'send an e-mail to the admin when' {
                     .$testScript @testParams
 
                     Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                    (&$MailAdminParams) -and ($Message -like "*$ImportFile*Property 'Option' not found*")
+                        (&$MailAdminParams) -and ($Message -like "*$ImportFile*Property 'Option.DuplicateFile' not found*")
                     }
                     Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                         $EntryType -eq 'Error'
                     }
                 }
-                Context 'Option.DuplicateFile' {
-                    It 'is missing' {
-                        $testNewInputFile = Copy-ObjectHC $testInputFile
-                        $testNewInputFile.Tasks[0].Option.Remove('DuplicateFile')
+                It 'is not supported' {
+                    $testNewInputFile = Copy-ObjectHC $testInputFile
+                    $testNewInputFile.Tasks[0].Option.DuplicateFile = 'wrong'
 
-                        $testNewInputFile | ConvertTo-Json -Depth 5 |
-                        Out-File @testOutParams
+                    $testNewInputFile | ConvertTo-Json -Depth 5 |
+                    Out-File @testOutParams
 
-                        .$testScript @testParams
+                    .$testScript @testParams
 
-                        Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                        (&$MailAdminParams) -and ($Message -like "*$ImportFile*Property 'Option.DuplicateFile' not found*")
-                        }
-                        Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                            $EntryType -eq 'Error'
-                        }
-                    }
-                    It 'is not supported' {
-                        $testNewInputFile = Copy-ObjectHC $testInputFile
-                        $testNewInputFile.Tasks[0].Option.DuplicateFile = 'wrong'
-
-                        $testNewInputFile | ConvertTo-Json -Depth 5 |
-                        Out-File @testOutParams
-
-                        .$testScript @testParams
-
-                        Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
+                    Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                     (&$MailAdminParams) -and ($Message -like "*$ImportFile*Value 'wrong' is not supported by 'Option.DuplicateFile'. Valid options are NULL, 'OverwriteFile' or 'RenameFile'*")
-                        }
-                        Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                            $EntryType -eq 'Error'
-                        }
+                    }
+                    Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
+                        $EntryType -eq 'Error'
                     }
                 }
             }
         }
     }
 }
-Describe 'a file in the source folder' {
-    Context 'is not moved when it is created more recently than' {
-        BeforeAll {
-            $testNewInputFile = Copy-ObjectHC $testInputFile
-            $testNewInputFile.Tasks = @(
-                @{
-                    ComputerName = $env:COMPUTERNAME
-                    SourceFolder = $testFolder.Source
-                    Destination  = @{
-                        Folder      = $testFolder.Destination
-                        ChildFolder = 'Year\Month'
-                    }
-                    OlderThan    = @{
-                        Quantity = 3
-                        Unit     = 'Day'
-                    }
-                }
-            )
-
-            $testFile = (New-Item -Path "$($testFolder.source)\file.txt" -ItemType File).FullName
-        }
-        It 'Day' {
-            $testNewInputFile.Tasks[0].OlderThan.Unit = 'Day'
-
-            $testNewInputFile | ConvertTo-Json -Depth 5 |
-            Out-File @testOutParams
-
-            Get-Item -Path $testFile | ForEach-Object {
-                $_.CreationTime = (Get-Date).AddDays(-2)
-            }
-
-            . $testScript @testParams
-
-            Get-ChildItem -Path $testFolder.Source | Should -HaveCount 1
-            Get-ChildItem -Path $testFolder.Destination | Should -HaveCount 0
-        }
-        It 'Month' {
-            $testNewInputFile.Tasks[0].OlderThan.Unit = 'Month'
-
-            $testNewInputFile | ConvertTo-Json -Depth 5 |
-            Out-File @testOutParams
-
-            Get-Item -Path $testFile | ForEach-Object {
-                $_.CreationTime = (Get-Date).AddMonths(-2)
-            }
-
-            . $testScript @testParams
-
-            Get-ChildItem -Path $testFolder.Source | Should -HaveCount 1
-            Get-ChildItem -Path $testFolder.Destination | Should -HaveCount 0
-        }
-        It 'Year' {
-            $testNewInputFile.Tasks[0].OlderThan.Unit = 'Year'
-
-            $testNewInputFile | ConvertTo-Json -Depth 5 |
-            Out-File @testOutParams
-
-            Get-Item -Path $testFile | ForEach-Object {
-                $_.CreationTime = (Get-Date).AddYears(-2)
-            }
-
-            . $testScript @testParams
-
-            Get-ChildItem -Path $testFolder.Source | Should -HaveCount 1
-            Get-ChildItem -Path $testFolder.Destination | Should -HaveCount 0
-        }
-    }
-    Context 'is moved when it is OlderThan' {
-        BeforeAll {
-            $testNewInputFile = Copy-ObjectHC $testInputFile
-            $testNewInputFile.Tasks[0].OlderThan.Quantity = 3
-        }
-        BeforeEach {
-            @($testFolder.Source, $testFolder.Destination) | ForEach-Object {
-                Remove-Item "$_\*" -Recurse -Force
-            }
-            $testFile = (New-Item -Path "$($testFolder.source)\file.txt" -ItemType File).FullName
-        }
-        It 'Day' {
-            $testNewInputFile.Tasks[0].OlderThan.Unit = 'Day'
-
-            $testNewInputFile | ConvertTo-Json -Depth 5 |
-            Out-File @testOutParams
-
-            Get-Item -Path $testFile | ForEach-Object {
-                $_.CreationTime = (Get-Date).AddDays(-4)
-            }
-
-            . $testScript @testParams
-
-            Get-ChildItem -Path $testFolder.Source | Should -HaveCount 0
-            Get-ChildItem -Path $testFolder.Destination | Should -HaveCount 1
-        }
-        It 'Month' {
-            $testNewInputFile.Tasks[0].OlderThan.Unit = 'Month'
-
-            $testNewInputFile | ConvertTo-Json -Depth 5 |
-            Out-File @testOutParams
-
-            Get-Item -Path $testFile | ForEach-Object {
-                $_.CreationTime = (Get-Date).AddMonths(-4)
-            }
-
-            . $testScript @testParams
-
-            Get-ChildItem -Path $testFolder.Source | Should -HaveCount 0
-            Get-ChildItem -Path $testFolder.Destination | Should -HaveCount 1
-        }
-        It 'Year' {
-            $testNewInputFile.Tasks[0].OlderThan.Unit = 'Year'
-
-            $testNewInputFile | ConvertTo-Json -Depth 5 |
-            Out-File @testOutParams
-
-            Get-Item -Path $testFile | ForEach-Object {
-                $_.CreationTime = (Get-Date).AddYears(-4)
-            }
-
-            . $testScript @testParams
-
-            Get-ChildItem -Path $testFolder.Source | Should -HaveCount 0
-            Get-ChildItem -Path $testFolder.Destination | Should -HaveCount 1
-        }
-    }
-    Context 'is moved to the Destination.ChildFolder' {
-        BeforeAll {
-            $testNewInputFile = Copy-ObjectHC $testInputFile
-            $testNewInputFile.Tasks[0].OlderThan.Quantity = 3
-            $testNewInputFile.Tasks[0].OlderThan.Unit = 'Day'
-        }
-        BeforeEach {
-            @($testFolder.Source, $testFolder.Destination) | ForEach-Object {
-                Remove-Item "$_\*" -Recurse -Force
-            }
-            $testFile = (New-Item -Path "$($testFolder.source)\file.txt" -ItemType File).FullName
-        }
-        It 'Year' {
-            $testNewInputFile.Tasks[0].Destination.ChildFolder = 'Year'
-
-            $testNewInputFile | ConvertTo-Json -Depth 5 |
-            Out-File @testOutParams
-
-            $testFileCreationDate = (Get-Date).AddDays(-4)
-
-            Get-Item -Path $testFile | ForEach-Object {
-                $_.CreationTime = $testFileCreationDate
-            }
-
-            . $testScript @testParams
-
-            Get-ChildItem -Path $testFolder.Source | Should -HaveCount 0
-            Get-ChildItem -Path (
-                $testFolder.Destination + '\' +
-                $testFileCreationDate.ToString('yyyy')
-            ) | Should -HaveCount 1
-        }
-        It 'Year-Month' {
-            $testNewInputFile.Tasks[0].Destination.ChildFolder = 'Year-Month'
-
-            $testNewInputFile | ConvertTo-Json -Depth 5 |
-            Out-File @testOutParams
-
-            $testFileCreationDate = (Get-Date).AddDays(-4)
-
-            Get-Item -Path $testFile | ForEach-Object {
-                $_.CreationTime = $testFileCreationDate
-            }
-
-            . $testScript @testParams
-
-            Get-ChildItem -Path $testFolder.Source | Should -HaveCount 0
-            Get-ChildItem -Path (
-                $testFolder.Destination + '\' +
-                $testFileCreationDate.ToString('yyyy') + '-' +
-                $testFileCreationDate.ToString('MM')
-            ) | Should -HaveCount 1
-        }
-        It 'Year\Month' {
-            $testNewInputFile.Tasks[0].Destination.ChildFolder = 'Year\Month'
-
-            $testNewInputFile | ConvertTo-Json -Depth 5 |
-            Out-File @testOutParams
-
-            $testFileCreationDate = (Get-Date).AddDays(-4)
-
-            Get-Item -Path $testFile | ForEach-Object {
-                $_.CreationTime = $testFileCreationDate
-            }
-
-            . $testScript @testParams
-
-            Get-ChildItem -Path $testFolder.Source | Should -HaveCount 0
-            Get-ChildItem -Path (
-                $testFolder.Destination + '\' +
-                $testFileCreationDate.ToString('yyyy') + '\' +
-                $testFileCreationDate.ToString('MM')
-            ) | Should -HaveCount 1
-        }
-        It 'YYYYMM' {
-            $testNewInputFile.Tasks[0].Destination.ChildFolder = 'YYYYMM'
-
-            $testNewInputFile | ConvertTo-Json -Depth 5 |
-            Out-File @testOutParams
-
-            $testFileCreationDate = (Get-Date).AddDays(-4)
-
-            Get-Item -Path $testFile | ForEach-Object {
-                $_.CreationTime = $testFileCreationDate
-            }
-
-            . $testScript @testParams
-
-            Get-ChildItem -Path $testFolder.Source | Should -HaveCount 0
-            Get-ChildItem -Path (
-                $testFolder.Destination + '\' +
-                $testFileCreationDate.ToString('yyyyMM')
-            ) | Should -HaveCount 1
-        }
-    }
-}
-Describe 'on a successful run' {
+Describe 'execute the move script' {
     BeforeAll {
         $testNewInputFile = Copy-ObjectHC $testInputFile
-        $testNewInputFile.Tasks[0].Destination.ChildFolder = 'Year'
+
+        $testJobArguments = {
+            ($FilePath -eq $testParams.MoveScript) -and
+            ($ArgumentList[0] -eq $testNewInputFile.Tasks[0].SourceFolder) -and
+            ($ArgumentList[1] -eq $testNewInputFile.Tasks[0].Destination.Folder) -and
+            ($ArgumentList[2] -eq $testNewInputFile.Tasks[0].Destination.ChildFolder) -and
+            ($ArgumentList[3] -eq $testNewInputFile.Tasks[0].OlderThan.Unit) -and
+            ($ArgumentList[4] -eq $testNewInputFile.Tasks[0].OlderThan.Quantity) -and
+            ($ArgumentList[5] -eq $testNewInputFile.Tasks[0].Option.DuplicateFile)
+        }
+    }
+    It 'with Invoke-Command when Tasks.ComputerName is not the localhost' {
+        $testNewInputFile.Tasks[0].ComputerName = 'PC1'
+
+        $testNewInputFile | ConvertTo-Json -Depth 7 |
+        Out-File @testOutParams
+
+        .$testScript @testParams
+
+        Should -Invoke Invoke-Command -Times 1 -Exactly -ParameterFilter {
+            (& $testJobArguments) -and
+            ($ComputerName -eq 'PC1')
+        }
+    }
+    It 'with direct invocation when Tasks.ComputerName is the localhost' {
+        $testNewInputFile.Tasks[0].ComputerName = $env:COMPUTERNAME
+
+        $testNewInputFile | ConvertTo-Json -Depth 7 |
+        Out-File @testOutParams
+
+        .$testScript @testParams
+
+        Should -Not -Invoke Invoke-Command
+    }
+}
+Describe 'create an Excel file' {
+    BeforeAll {
+        $testNewInputFile = Copy-ObjectHC $testInputFile
         $testNewInputFile.Tasks[0].OlderThan.Quantity = 3
         $testNewInputFile.Tasks[0].OlderThan.Unit = 'Day'
 
         $testNewInputFile | ConvertTo-Json -Depth 5 |
         Out-File @testOutParams
 
-        $testFileCreationDate = (Get-Date).AddDays(-4)
-
-        $testFile = (New-Item -Path "$($testFolder.source)\file.txt" -ItemType File).FullName
-
-        Get-Item -Path $testFile | ForEach-Object {
-            $_.CreationTime = $testFileCreationDate
-        }
-
-        $Error.Clear()
         . $testScript @testParams
+
+        $testExcelLogFile = Get-ChildItem $testParams.LogFolder -File -Recurse -Filter '*.xlsx'
     }
-    Context 'export an Excel file' {
+    It 'in the log folder' {
+        $testExcelLogFile | Should -Not -BeNullOrEmpty
+    }
+    Context "with sheet 'Overview'" {
         BeforeAll {
             $testExportedExcelRows = @(
                 @{
-                    Action                 = 'File moved'
-                    ComputerName           = $env:COMPUTERNAME
-                    SourceFileCreationTime = $testFileCreationDate
-                    SourceFilePath         = $testFile
-                    DestinationFolderPath  = "$($testFolder.Destination)\{0}" -f $testFileCreationDate.ToString('yyyy')
-                    OlderThan              = '3 Days'
-                    Error                  = $null
+                    ComputerName      = $testInputFile.Tasks[0].ComputerName
+                    OlderThan         = '3 Days'
+                    SourceFolder      = $testInputFile.Tasks[0].SourceFolder
+                    DestinationFolder = $testData[0].DestinationFolderPath
+                    FileName          = $testData[0].FileName
+                    FileCreationTime  = $testData[0].FileCreationTime
+                    Action            = $testData[0].Action
+                    Error             = $testData[0].Error
+                }
+                @{
+                    ComputerName      = $testInputFile.Tasks[0].ComputerName
+                    OlderThan         = '3 Days'
+                    SourceFolder      = $testInputFile.Tasks[0].SourceFolder
+                    DestinationFolder = $testData[1].DestinationFolderPath
+                    FileName          = $testData[1].FileName
+                    FileCreationTime  = $testData[1].FileCreationTime
+                    Action            = $testData[1].Action
+                    Error             = $testData[1].Error
                 }
             )
 
-            $testExcelLogFile = Get-ChildItem $testParams.LogFolder -File -Recurse -Filter '*.xlsx'
-
             $actual = Import-Excel -Path $testExcelLogFile.FullName -WorksheetName 'Overview'
-        }
-        It 'to the log folder' {
-            $testExcelLogFile | Should -Not -BeNullOrEmpty
         }
         It 'with the correct total rows' {
             $actual | Should -HaveCount $testExportedExcelRows.Count
@@ -625,31 +413,185 @@ Describe 'on a successful run' {
         It 'with the correct data in the rows' {
             foreach ($testRow in $testExportedExcelRows) {
                 $actualRow = $actual | Where-Object {
-                    $_.SourceFilePath -eq $testRow.SourceFilePath
+                    $_.FileName -eq $testRow.FileName
                 }
                 $actualRow.ComputerName | Should -Be $testRow.ComputerName
-                $actualRow.SourceFileCreationTime.ToString('yyyyMMdd HHmmss') |
-                Should -Be $testRow.SourceFileCreationTime.ToString('yyyyMMdd HHmmss')
-                $actualRow.DestinationFolderPath | Should -Be $testRow.DestinationFolderPath
+                $actualRow.SourceFolder | Should -Be $testRow.SourceFolder
+                $actualRow.DestinationFolder | Should -Be $testRow.DestinationFolder
+                $actualRow.FileCreationTime.ToString('yyyyMMdd HHmmss') |
+                Should -Be $testRow.FileCreationTime.ToString('yyyyMMdd HHmmss')
                 $actualRow.OlderThan | Should -Be $testRow.OlderThan
                 $actualRow.Error | Should -Be $testRow.Error
                 $actualRow.Action | Should -Be $testRow.Action
             }
         }
     }
-    It 'send a summary mail to the user' {
+    Context "with sheet 'Errors'" {
+        BeforeAll {
+            Remove-Item -Path $testParams.LogFolder -Recurse -Force
+
+            Mock Invoke-Command {
+                throw 'Oops'
+            } -ParameterFilter {
+                $FilePath -eq $testParams.MoveScript
+            }
+
+            . $testScript @testParams
+
+            $testExportedExcelRows = @(
+                @{
+                    ComputerName = $testInputFile.Tasks[0].ComputerName
+                    SourceFolder = $testInputFile.Tasks[0].SourceFolder
+                    Error        = 'Oops'
+                }
+            )
+
+            $testExcelLogFile = Get-ChildItem $testParams.LogFolder -File -Recurse -Filter '*.xlsx'
+
+            $actual = Import-Excel -Path $testExcelLogFile.FullName -WorksheetName 'Errors'
+        }
+        It 'with the correct total rows' {
+            $actual | Should -HaveCount $testExportedExcelRows.Count
+        }
+        It 'with the correct data in the rows' {
+            $actualRow.ComputerName | Should -Be $testRow.ComputerName
+            $actualRow.SourceFolder | Should -Be $testRow.SourceFolder
+            $actualRow.Error | Should -Be $testRow.Error
+        }
+    }
+}
+Describe 'SendMail.When' {
+    BeforeAll {
+        $testParamFilter = @{
+            ParameterFilter = { $To -eq $testNewInputFile.SendMail.To }
+        }
+    }
+    BeforeEach {
+        $error.Clear()
+    }
+    Context 'send no e-mail to the user' {
+        BeforeAll {
+            Mock Invoke-Command {
+            } -ParameterFilter {
+                $FilePath -eq $testParams.MoveScript
+            }
+        }
+        It "'Never'" {
+            $testNewInputFile = Copy-ObjectHC $testInputFile
+            $testNewInputFile.SendMail.When = 'Never'
+
+            $testNewInputFile | ConvertTo-Json -Depth 7 |
+            Out-File @testOutParams
+
+            .$testScript @testParams
+
+            Should -Not -Invoke Send-MailHC @testParamFilter
+        }
+        It "'OnlyOnError' and no errors are found" {
+            $testNewInputFile = Copy-ObjectHC $testInputFile
+            $testNewInputFile.SendMail.When = 'OnlyOnError'
+
+            $testNewInputFile | ConvertTo-Json -Depth 7 |
+            Out-File @testOutParams
+
+            .$testScript @testParams
+
+            Should -Not -Invoke Send-MailHC
+        }
+        It "'OnlyOnErrorOrAction' and there are no errors and no actions" {
+            Mock Invoke-Command {
+            } -ParameterFilter {
+                $FilePath -eq $testParams.MoveScript
+            }
+
+            $testNewInputFile = Copy-ObjectHC $testInputFile
+            $testNewInputFile.SendMail.When = 'OnlyOnErrorOrAction'
+
+            $testNewInputFile | ConvertTo-Json -Depth 7 |
+            Out-File @testOutParams
+
+            .$testScript @testParams
+
+            Should -Not -Invoke Send-MailHC
+        }
+    }
+    Context 'send an e-mail to the user' {
+        It "'OnlyOnError' and there are errors" {
+            Mock Invoke-Command {
+                $testData[1]
+            } -ParameterFilter {
+                $FilePath -eq $testParams.MoveScript
+            }
+
+            $testNewInputFile = Copy-ObjectHC $testInputFile
+            $testNewInputFile.SendMail.When = 'OnlyOnError'
+
+            $testNewInputFile | ConvertTo-Json -Depth 7 |
+            Out-File @testOutParams
+
+            .$testScript @testParams
+
+            Should -Invoke Send-MailHC @testParamFilter
+        }
+        It "'OnlyOnErrorOrAction' and there are actions but no errors" {
+            Mock Invoke-Command {
+                $testData[0]
+            } -ParameterFilter {
+                $FilePath -eq $testParams.MoveScript
+            }
+
+            $testNewInputFile = Copy-ObjectHC $testInputFile
+            $testNewInputFile.SendMail.When = 'OnlyOnErrorOrAction'
+
+            $testNewInputFile | ConvertTo-Json -Depth 7 |
+            Out-File @testOutParams
+
+            .$testScript @testParams
+
+            Should -Invoke Send-MailHC @testParamFilter
+        }
+        It "'OnlyOnErrorOrAction' and there are errors but no actions" {
+            Mock Invoke-Command {
+                $testData[1]
+            } -ParameterFilter {
+                $FilePath -eq $testParams.MoveScript
+            }
+
+            $testNewInputFile = Copy-ObjectHC $testInputFile
+            $testNewInputFile.SendMail.When = 'OnlyOnErrorOrAction'
+
+            $testNewInputFile | ConvertTo-Json -Depth 7 |
+            Out-File @testOutParams
+
+            .$testScript @testParams
+
+            Should -Invoke Send-MailHC @testParamFilter
+        }
+    }
+}
+Describe 'send an e-mail' {
+    BeforeAll {
+        $error.Clear()
+        $testNewInputFile = Copy-ObjectHC $testInputFile
+
+        $testNewInputFile | ConvertTo-Json -Depth 5 |
+        Out-File @testOutParams
+
+        . $testScript @testParams
+    }
+    It 'to the user' {
         Should -Invoke Send-MailHC -Exactly 1 -Scope Describe -ParameterFilter {
-            ($To -eq 'bob@contoso.com') -and
-            ($Bcc -eq $ScriptAdmin) -and
-            ($Priority -eq 'Normal') -and
-            ($Subject -eq '1 file moved') -and
+            ($To -eq $testNewInputFile.SendMail.To) -and
+            ($Bcc -eq $testParams.ScriptAdmin) -and
+            ($Priority -eq 'High') -and
+            ($Subject -eq '1 file moved, 1 error') -and
             ($Attachments -like '*log.xlsx') -and
             ($Message -like (
-                "*From: <a href=`"{0}`">{0}</a><br>To: <a href=`"{1}`">{1}</a><br>Move files older than 3 days<br>Moved: 1*" -f $(
-                    "\\$env:COMPUTERNAME\C$\$($testFolder.Source.Substring(3))"
+                "*From: <a href=`"{0}`">{0}</a><br>To: <a href=`"{1}`">{1}</a><br>Move files older than 1 month<br>Moved: 1, <b style=`"color:red;`">errors: 1*" -f $(
+                    "\\$($testNewInputFile.Tasks[0].ComputerName)\C$\$($testFolder.Source.Substring(3))"
                 ),
                 $(
-                    "\\$env:COMPUTERNAME\C$\$($testFolder.Destination.Substring(3))"
+                    "\\$($testNewInputFile.Tasks[0].ComputerName)\C$\$($testFolder.Destination.Substring(3))"
                 )
             ))
         }
