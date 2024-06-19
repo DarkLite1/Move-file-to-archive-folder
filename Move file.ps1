@@ -191,6 +191,10 @@ foreach (
         }
     }
     finally {
+        if ($result.Error) {
+            Write-Warning "Error: $($result.Error)"
+        }
+
         $result
     }
 }
