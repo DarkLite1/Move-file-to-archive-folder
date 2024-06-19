@@ -203,6 +203,114 @@ Describe 'a file in the source folder' {
         }
     }
 }
+Describe 'when a file already exists in the destination folder' {
+    BeforeAll {
+        $testNewParams = Copy-ObjectHC $testParams
+        $testNewParams.OlderThanQuantity = 0
+        $testNewParams.OlderThanUnit = 'Day'
+        $testNewParams.DestinationChildFolder = 'Year'
+
+        $currentYear = (Get-Date).ToString('yyyy')
+    }
+
+    Context 'and DuplicateFile is blank' {
+        BeforeAll {
+            $Error.Clear()
+
+            $testNewParams.DuplicateFile = $null
+
+            @($testFolder.Source, $testFolder.Destination) | ForEach-Object {
+                Remove-Item "$_\*" -Recurse -Force
+            }
+
+            $null = New-Item -Path "$($testFolder.Destination)\$currentYear" -ItemType Directory
+
+            $testFile = @{
+                Source      = New-Item -Path "$($testFolder.Source)\a.txt" -ItemType File
+                Destination = New-Item -Path "$($testFolder.Destination)\$currentYear\a.txt" -ItemType File
+            }
+
+            $actual = . $testScript @testNewParams
+        }
+        It 'the file is not moved' {
+            $testFile.Source | Should -Exist
+            $testFile.Destination | Should -Exist
+        }
+        It 'no action is taken' {
+            $actual.Action | Should -BeNullOrEmpty
+        }
+        It 'an error is thrown' {
+            $actual.Error |
+            Should -BeExactly "Duplicate file name in destination folder. (See 'Option.DuplicateFile: OverwriteFile or RenameFile')"
+
+            $error | Should -HaveCount 0
+        }
+    }
+    Context "and DuplicateFile is 'OverwriteFile'" {
+        BeforeAll {
+            $Error.Clear()
+
+            $testNewParams.DuplicateFile = 'OverwriteFile'
+
+            @($testFolder.Source, $testFolder.Destination) | ForEach-Object {
+                Remove-Item "$_\*" -Recurse -Force
+            }
+
+            $null = New-Item -Path "$($testFolder.Destination)\$currentYear" -ItemType Directory
+
+            $testFile = @{
+                Source      = New-Item -Path "$($testFolder.Source)\a.txt" -ItemType File
+                Destination = New-Item -Path "$($testFolder.Destination)\$currentYear\a.txt" -ItemType File
+            }
+
+            $actual = . $testScript @testNewParams
+        }
+        It 'the file is moved' {
+            $testFile.Source | Should -Not -Exist
+            $testFile.Destination | Should -Exist
+        }
+        It 'action is taken' {
+            $actual.Action | Should -BeExactly 'File moved and overwritten'
+        }
+        It 'no error is thrown' {
+            $actual.Error | Should -BeNullOrEmpty
+
+            $error | Should -HaveCount 0
+        }
+    }
+    Context "and DuplicateFile is 'RenameFile'" {
+        BeforeAll {
+            $Error.Clear()
+
+            $testNewParams.DuplicateFile = 'RenameFile'
+
+            @($testFolder.Source, $testFolder.Destination) | ForEach-Object {
+                Remove-Item "$_\*" -Recurse -Force
+            }
+
+            $null = New-Item -Path "$($testFolder.Destination)\$currentYear" -ItemType Directory
+
+            $testFile = @{
+                Source      = New-Item -Path "$($testFolder.Source)\a.txt" -ItemType File
+                Destination = New-Item -Path "$($testFolder.Destination)\$currentYear\a.txt" -ItemType File
+            }
+
+            $actual = . $testScript @testNewParams
+        }
+        It 'the file is moved' {
+            $testFile.Source | Should -Not -Exist
+            $testFile.Destination | Should -Exist
+        }
+        It 'action is taken' {
+            $actual.Action | Should -BeLike "*File moved with new name 'a*.txt' due to duplicate file name*"
+        }
+        It 'no error is thrown' {
+            $actual.Error | Should -BeNullOrEmpty
+
+            $error | Should -HaveCount 0
+        }
+    }
+} -Tag test
 Describe 'on a successful run' {
     BeforeAll {
         $testNewParams = Copy-ObjectHC $testParams

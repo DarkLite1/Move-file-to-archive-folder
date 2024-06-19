@@ -13,6 +13,7 @@ Param (
     [String]$OlderThanUnit,
     [Parameter(Mandatory)]
     [Int]$OlderThanQuantity,
+    [ValidateSet($null, 'OverwriteFile', 'RenameFile')]
     [String]$DuplicateFile
 )
 
@@ -23,6 +24,8 @@ if (-not (Test-Path -LiteralPath $SourceFolder -PathType Container)) {
 #endregion
 
 #region Create filter
+Write-Verbose "Create filter for files with a creation date older than '$OlderThanQuantity $OlderThanUnit'"
+
 if ($OlderThanQuantity -eq 0) {
     Filter Select-FileHC {
         Write-Output $_
@@ -71,6 +74,8 @@ foreach (
     Get-ChildItem $SourceFolder -File | Select-FileHC
 ) {
     try {
+        Write-Verbose "File '$File'"
+
         $result = [PSCustomObject]@{
             Action                = $null
             FileName              = $file.Name
@@ -107,41 +112,83 @@ foreach (
         }
         $result.DestinationFolderPath = Join-Path @joinParams
 
-        Try {
-            $newParams = @{
-                Path        = $result.DestinationFolderPath
-                Type        = 'Directory'
-                ErrorAction = 'Ignore'
-            }
-            $null = New-Item @newParams
-
-            $moveParams = @{
-                Path        = $file.FullName
-                Destination = $result.DestinationFolderPath
-                ErrorAction = 'Stop'
-            }
-            Move-Item @moveParams
-
-            $result.Action = 'File moved'
+        $newParams = @{
+            Path        = $result.DestinationFolderPath
+            Type        = 'Directory'
+            ErrorAction = 'Ignore'
         }
-        Catch {
-            Switch ($_) {
-                { $_ -match 'file already exists' } {
-                    Move-Item @moveParams -Force
-                    $result.Action = 'File moved and overwritten'
-                    $error.RemoveAt(0)
-                    break
-                }
-                default {
-                    $result.Error = $_
-                    $error.RemoveAt(0)
-                }
-            }
+        $null = New-Item @newParams
+
+        $moveParams = @{
+            Path        = $file.FullName
+            Destination = $result.DestinationFolderPath
+            ErrorAction = 'Stop'
         }
+        Write-Verbose "Move to '$($moveParams.Destination)'"
+        Move-Item @moveParams
+
+        $result.Action = 'File moved'
+        Write-Verbose $result.Action
     }
     catch {
-        $result.Error = $_
-        $error.RemoveAt(0)
+        if ($_ -match 'file already exists') {
+            Write-Verbose 'Duplicate file name in destination folder'
+
+            $error.RemoveAt(0)
+
+            switch ($DuplicateFile) {
+                'OverwriteFile' {
+                    try {
+                        Write-Verbose 'Overwrite destination file'
+
+                        Move-Item @moveParams -Force
+                        $result.Action = 'File moved and overwritten'
+
+                        Write-Verbose $result.Action
+                    }
+                    catch {
+                        $result.Error = "Failed to overwrite file: $_"
+                        $error.RemoveAt(0)
+                    }
+                    Break
+                }
+                'RenameFile' {
+                    try {
+                        Write-Verbose 'Create new name for destination file'
+
+                        $newFileName = '{0}_{1}_{2}{3}' -f
+                        $file.BaseName,
+                        $file.CreationTime.ToString('yyyy-MM-dd-HHmmss'),
+                        $(Get-Random -Maximum 999),
+                        $file.Extension
+
+                        $joinParams = @{
+                            Path      = $moveParams.Destination
+                            ChildPath = $newFileName
+                        }
+                        $moveParams.Destination = Join-Path @joinParams
+
+                        Move-Item @moveParams
+
+                        $result.Action = "File moved with new name '$newFileName' due to duplicate file name"
+
+                        Write-Verbose $result.Action
+                    }
+                    catch {
+                        $result.Error = "Failed to move file with new name '$newFileName': $_"
+                        $error.RemoveAt(0)
+                    }
+                    Break
+                }
+                Default {
+                    $result.Error = "Duplicate file name in destination folder. (See 'Option.DuplicateFile: OverwriteFile or RenameFile')"
+                }
+            }
+        }
+        else {
+            $result.Error = $_
+            $error.RemoveAt(0)
+        }
     }
     finally {
         $result

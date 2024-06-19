@@ -11,7 +11,8 @@
       "SourceFolder": "C:\\folderA",
       "Destination": {
         "Folder": "C:\\folderB",
-        "ChildFolder": "Year-Month"
+        "ChildFolder": "Year-Month",
+        "?": "Year-Month | Year\\Month | Year | YYYYMM"
       },
       "OlderThan": {
         "Quantity": 1,
