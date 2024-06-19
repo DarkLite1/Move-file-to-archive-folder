@@ -189,12 +189,12 @@ foreach (
             $result.Error = $_
             $error.RemoveAt(0)
         }
-    }
-    finally {
+
         if ($result.Error) {
             Write-Warning "Error: $($result.Error)"
         }
-
+    }
+    finally {
         $result
     }
 }
