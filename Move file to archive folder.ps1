@@ -244,7 +244,6 @@ Process {
 
                 #region Declare variables for code running in parallel
                 if (-not $MaxConcurrentJobs) {
-                    $task = $using:task
                     $moveScriptPath = $using:moveScriptPath
                     $PSSessionConfiguration = $using:PSSessionConfiguration
                     $EventVerboseParams = $using:EventVerboseParams
