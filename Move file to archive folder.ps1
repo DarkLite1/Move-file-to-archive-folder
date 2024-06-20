@@ -300,6 +300,10 @@ Process {
                     Write-Warning $M
                     Write-EventLog @EventErrorParams -Message $M
                 }
+                elseif ($task.Job.Results.Count) {
+                    Write-Verbose $M
+                    Write-EventLog @EventOutParams -Message $M
+                }
                 else {
                     Write-Verbose $M
                     Write-EventLog @EventVerboseParams -Message $M
@@ -599,7 +603,8 @@ End {
         Get-ScriptRuntimeHC -Stop
 
         if ($sendMailToUser) {
-            Write-Verbose 'Send e-mail to the user'
+            $M = 'Send e-mail to the user'
+            Write-Verbose $M; Write-EventLog @EventVerboseParams -Message $M
 
             if ($totalErrorCount) {
                 $mailParams.Bcc = $ScriptAdmin
@@ -607,7 +612,8 @@ End {
             Send-MailHC @mailParams
         }
         else {
-            Write-Verbose 'Send no e-mail to the user'
+            $M = 'Send no e-mail to the user'
+            Write-Verbose $M; Write-EventLog @EventVerboseParams -Message $M
 
             if ($totalErrorCount) {
                 Write-Verbose 'Send e-mail to admin only with errors'
