@@ -247,6 +247,8 @@ Process {
                     $moveScriptPath = $using:moveScriptPath
                     $PSSessionConfiguration = $using:PSSessionConfiguration
                     $EventVerboseParams = $using:EventVerboseParams
+                    $EventErrorParams = $using:EventErrorParams
+                    $EventOutParams = $using:EventOutParams
                 }
                 #endregion
 
