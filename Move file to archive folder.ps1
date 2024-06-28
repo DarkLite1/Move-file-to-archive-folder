@@ -584,16 +584,17 @@ End {
 
         #region Send mail to user
         $mailParams += @{
-            To        = $file.SendMail.To
-            Bcc       = $ScriptAdmin
-            Message   = "
+            To             = $file.SendMail.To
+            Bcc            = $ScriptAdmin
+            Message        = "
                 $systemErrorsHtmlList
                 $jobErrorsHtml
                 <p>Summary:</p>
                 $jobResultsHtmlList"
-            LogFolder = $LogParams.LogFolder
-            Header    = $ScriptName
-            Save      = $LogFile + ' - Mail.html'
+            LogFolder      = $LogParams.LogFolder
+            Header         = $ScriptName
+            EventLogSource = $ScriptName
+            Save           = $LogFile + ' - Mail.html'
         }
 
         if ($mailParams.Attachments) {
