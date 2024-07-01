@@ -595,6 +595,7 @@ End {
             Header         = $ScriptName
             EventLogSource = $ScriptName
             Save           = $LogFile + ' - Mail.html'
+            ErrorAction    = 'Stop'
         }
 
         if ($mailParams.Attachments) {
