@@ -1,8 +1,7 @@
 {
   "SendMail": {
     "To": ["bob@contoso.com"],
-    "When": "Always",
-    "?": "When: Never | OnlyOnError | OnlyOnErrorOrAction | Always"
+    "When": "Always"
   },
   "MaxConcurrentJobs": 4,
   "Tasks": [
@@ -24,7 +23,8 @@
       "?": {
         "Destination.ChildFolder": "Year-Month | Year\\Month | Year | YYYYMM",
         "Destination.DuplicateFile": "NULL | OverwriteFile | RenameFile",
-        "OlderThan.Unit": "Day | Month | Year"
+        "OlderThan.Unit": "Day | Month | Year",
+        "SendMail.When": "Never | OnlyOnError | OnlyOnErrorOrAction | Always"
       }
     },
     {
