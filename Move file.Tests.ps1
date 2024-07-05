@@ -15,12 +15,13 @@ BeforeAll {
         OlderThanUnit          = 'Month'
         OlderThanQuantity      = 1
         DuplicateFile          = $null
+        Recurse                = $false
     }
 }
 Describe 'the mandatory parameters are' {
     It '<_>' -ForEach @(
         'SourceFolder', 'DestinationFolder', 'DestinationChildFolder',
-        'OlderThanUnit', 'OlderThanQuantity'
+        'OlderThanUnit', 'OlderThanQuantity', 'Recurse'
     ) {
         (Get-Command $testScript).Parameters[$_].Attributes.Mandatory |
         Should -BeTrue
@@ -203,6 +204,47 @@ Describe 'a file in the source folder' {
         }
     }
 }
+Describe 'when a file is in a sub folder and Recurse is' {
+    BeforeAll {
+        $testSourceFolder = (New-Item -Path "$($testFolder.source)\Folder" -ItemType Directory).FullName
+
+        $testSourceFile = New-Item -Path "$testSourceFolder\1.txt" -ItemType File
+
+        $testFileCreationDate = (Get-Date).AddDays(-4)
+
+        Get-Item -Path $testSourceFile | ForEach-Object {
+            $_.CreationTime = $testFileCreationDate
+        }
+
+        $testNewParams = Copy-ObjectHC $testParams
+        $testNewParams.OlderThanQuantity = 0
+        $testNewParams.OlderThanUnit = 'Day'
+        $testNewParams.DestinationChildFolder = 'Year'
+    }
+    Context 'false' {
+        It 'do not move the file' {
+            $testNewParams.Recurse = $false
+
+            . $testScript @testNewParams
+
+            $testSourceFile | Should -Exist
+
+            "$($testFolder.Destination)\$($testFileCreationDate.ToString('yyyy'))\$($testSourceFile.Name)" |
+            Should -Not -Exist
+        }
+    }
+    Context 'true' {
+        It 'move the file to the destination folder' {
+            $testNewParams.Recurse = $true
+
+            . $testScript @testNewParams
+
+            $testSourceFile | Should -Not -Exist
+
+            "$($testFolder.Destination)\$($testFileCreationDate.ToString('yyyy'))\$($testSourceFile.Name)"  | Should -Exist
+        }
+    }
+}
 Describe 'when a file already exists in the destination folder' {
     BeforeAll {
         $testNewParams = Copy-ObjectHC $testParams
@@ -310,7 +352,7 @@ Describe 'when a file already exists in the destination folder' {
             $error | Should -HaveCount 0
         }
     }
-} -Tag test
+}
 Describe 'on a successful run' {
     BeforeAll {
         $testNewParams = Copy-ObjectHC $testParams

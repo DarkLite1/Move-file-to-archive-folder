@@ -13,6 +13,8 @@ Param (
     [String]$OlderThanUnit,
     [Parameter(Mandatory)]
     [Int]$OlderThanQuantity,
+    [Parameter(Mandatory)]
+    [Boolean]$Recurse,
     [ValidateSet($null, 'OverwriteFile', 'RenameFile')]
     [String]$DuplicateFile
 )
@@ -43,6 +45,8 @@ else {
                     Write-Output $_
                 }
             }
+
+            break
         }
         'Month' {
             Filter Select-FileHC {
@@ -52,6 +56,8 @@ else {
                     Write-Output $_
                 }
             }
+
+            break
         }
         'Year' {
             Filter Select-FileHC {
@@ -61,6 +67,8 @@ else {
                     Write-Output $_
                 }
             }
+
+            break
         }
         Default {
             throw "OlderThan.Unit '$_' not supported"
@@ -69,9 +77,15 @@ else {
 }
 #endregion
 
+$getParams = @{
+    LiteralPath = $SourceFolder
+    File        = $true
+    Recurse     = $Recurse
+}
+
 foreach (
     $file in
-    Get-ChildItem $SourceFolder -File | Select-FileHC
+    Get-ChildItem @getParams | Select-FileHC
 ) {
     try {
         Write-Verbose "File '$File'"
