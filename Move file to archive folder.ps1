@@ -18,6 +18,9 @@
     .PARAMETER Source.Folder
         Path of the source folder where the file are located.
 
+    .PARAMETER Source.Recurse
+        Search for files in child folders of the source folder.
+
     .PARAMETER Destination.Folder
         Path of the destination folder where the files need be moved too.
 
@@ -30,6 +33,14 @@
         - Year\\Month : Parent folder '2022' child folder '01'
         - Year        : Parent folder '2022'
         - YYYYMM      : Parent folder '202201'
+
+    .PARAMETER Destination.DuplicateFile
+        Handle files with a duplicate file name in the destination folder.
+
+        Valid options:
+        - Null          : throw an error when a duplicate file is present
+        - OverWriteFile : overwrite a file with the same name
+        - RenameFile    : create a new name for the duplicate file
 
     .PARAMETER OlderThan.Unit
         Combined with OlderThan.Quantity this reads:
