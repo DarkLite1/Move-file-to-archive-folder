@@ -8,7 +8,10 @@
   "Tasks": [
     {
       "ComputerName": "PC1",
-      "SourceFolder": "C:\\folderA",
+      "Source": {
+        "Folder": "C:\\folderA",
+        "Recurse": false
+      },
       "Destination": {
         "Folder": "C:\\folderB",
         "ChildFolder": "Year-Month",
@@ -29,7 +32,10 @@
     },
     {
       "ComputerName": null,
-      "SourceFolder": "\\\\contoso\\folderA",
+      "Source": {
+        "Folder": "\\\\contoso\\folderA",
+        "Recurse": false
+      },
       "Destination": {
         "Folder": "\\\\contoso\\folderB",
         "ChildFolder": "Year"
