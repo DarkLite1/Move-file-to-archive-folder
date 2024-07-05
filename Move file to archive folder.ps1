@@ -15,7 +15,7 @@
         The file search is non recursive, only files in the root folder are
         treated.
 
-    .PARAMETER SourceFolder
+    .PARAMETER Source.Folder
         Path of the source folder where the file are located.
 
     .PARAMETER Destination.Folder
@@ -138,12 +138,36 @@ Begin {
             $Tasks = $file.Tasks
             foreach ($task in $Tasks) {
                 @(
-                    'SourceFolder', 'Destination', 'OlderThan', 'Option'
+                    'Source', 'Destination', 'OlderThan', 'Option'
                 ).where(
                     { -not $task.$_ }
                 ).foreach(
                     { throw "Property 'Tasks.$_' not found" }
                 )
+
+                @(
+                    'Folder'
+                ).where(
+                    { -not $task.Source.$_ }
+                ).foreach(
+                    { throw "Property 'Tasks.Source.$_' not found" }
+                )
+
+                #region Test boolean values
+                foreach (
+                    $boolean in
+                    @(
+                        'Recurse'
+                    )
+                ) {
+                    try {
+                        $null = [Boolean]::Parse($task.Source.$boolean)
+                    }
+                    catch {
+                        throw "Property 'Tasks.Source.$boolean' is not a boolean value"
+                    }
+                }
+                #endregion
 
                 @(
                     'Folder', 'ChildFolder'
@@ -167,28 +191,28 @@ Begin {
                 }
 
                 if ($task.PSObject.Properties.Name -notContains 'OlderThan') {
-                    throw "Input file '$ImportFile' SourceFolder '$($task.SourceFolder)': Property 'OlderThan' with 'Quantity' and 'Unit' not found."
+                    throw "Input file '$ImportFile' Source.Folder '$($task.Source.Folder)': Property 'OlderThan' with 'Quantity' and 'Unit' not found."
                 }
 
                 if ($task.OlderThan.PSObject.Properties.Name -notContains 'Quantity') {
-                    throw "Input file '$ImportFile' SourceFolder '$($task.SourceFolder)': Property 'OlderThan.Quantity' not found. Use value number '0' to move all files."
+                    throw "Input file '$ImportFile' Source.Folder '$($task.Source.Folder)': Property 'OlderThan.Quantity' not found. Use value number '0' to move all files."
                 }
 
                 try {
                     $null = [int]$task.OlderThan.Quantity
                 }
                 catch {
-                    throw "Input file '$ImportFile' SourceFolder '$($task.SourceFolder)': Property 'OlderThan.Quantity' needs to be a number, the value '$($task.OlderThan.Quantity)' is not supported. Use value number '0' to move all files."
+                    throw "Input file '$ImportFile' Source.Folder '$($task.Source.Folder)': Property 'OlderThan.Quantity' needs to be a number, the value '$($task.OlderThan.Quantity)' is not supported. Use value number '0' to move all files."
                 }
                 #endregion
 
                 #region Option
                 if ($task.PSObject.Properties.Name -notContains 'Option') {
-                    throw "Input file '$ImportFile' SourceFolder '$($task.SourceFolder)': Property 'Option' not found."
+                    throw "Input file '$ImportFile' Source.Folder '$($task.Source.Folder)': Property 'Option' not found."
                 }
 
                 if ($task.Option.PSObject.Properties.Name -notContains 'DuplicateFile') {
-                    throw "Input file '$ImportFile' SourceFolder '$($task.SourceFolder)': Property 'Option.DuplicateFile' not found."
+                    throw "Input file '$ImportFile' Source.Folder '$($task.Source.Folder)': Property 'Option.DuplicateFile' not found."
                 }
 
                 if (
@@ -255,18 +279,20 @@ Process {
                 #region Create job parameters
                 $invokeParams = @{
                     FilePath     = $moveScriptPath
-                    ArgumentList = $task.SourceFolder,
+                    ArgumentList = $task.Source.Folder,
                     $task.Destination.Folder,
                     $task.Destination.ChildFolder,
                     $task.OlderThan.Unit,
                     $task.OlderThan.Quantity,
+                    $task.Source.Recurse,
                     $task.Option.DuplicateFile
                 }
 
-                $M = "Start job on '{0}' with SourceFolder '{1}' Destination.Folder '{2}' Destination.ChildFolder '{3}' OlderThan.Unit '{4}' OlderThan.Quantity '{5}' Option.DuplicateFile '{6}'" -f $env:COMPUTERNAME,
+                $M = "Start job on '{0}' with Source.Folder '{1}' Destination.Folder '{2}' Destination.ChildFolder '{3}' OlderThan.Unit '{4}' OlderThan.Quantity '{5}' Source.Recurse '{6}' Option.DuplicateFile '{7}'" -f $env:COMPUTERNAME,
                 $invokeParams.ArgumentList[0], $invokeParams.ArgumentList[1],
                 $invokeParams.ArgumentList[2], $invokeParams.ArgumentList[3],
-                $invokeParams.ArgumentList[4], $invokeParams.ArgumentList[5]
+                $invokeParams.ArgumentList[4], $invokeParams.ArgumentList[5],
+                $invokeParams.ArgumentList[6]
                 Write-Verbose $M; Write-EventLog @EventVerboseParams -Message $M
                 #endregion
 
@@ -290,10 +316,11 @@ Process {
                 #endregion
 
                 #region Verbose
-                $M = "Task on '{0}' with SourceFolder '{1}' Destination.Folder '{2}' Destination.ChildFolder '{3}' OlderThan.Unit '{4}' OlderThan.Quantity '{5}' Option.DuplicateFile '{6}'. Results: {7}" -f $env:COMPUTERNAME,
+                $M = "Task on '{0}' with Source.Folder '{1}' Destination.Folder '{2}' Destination.ChildFolder '{3}' OlderThan.Unit '{4}' OlderThan.Quantity '{5}' Source.Recurse '{6}' Option.DuplicateFile '{7}'. Results: {7}" -f $env:COMPUTERNAME,
                 $invokeParams.ArgumentList[0], $invokeParams.ArgumentList[1],
                 $invokeParams.ArgumentList[2], $invokeParams.ArgumentList[3],
                 $invokeParams.ArgumentList[4], $invokeParams.ArgumentList[5],
+                $invokeParams.ArgumentList[6]
                 $task.Job.Results.Count
 
                 if ($errorCount = $task.Job.Results.Where({ $_.Error }).Count) {
@@ -360,7 +387,7 @@ End {
                 },
                 @{
                     Name       = 'SourceFolder'
-                    Expression = { $task.SourceFolder }
+                    Expression = { $task.Source.Folder }
                 },
                 @{
                     Name       = 'Error'
@@ -385,7 +412,7 @@ End {
                 },
                 @{
                     Name       = 'SourceFolder'
-                    Expression = { $task.SourceFolder }
+                    Expression = { $task.Source.Folder }
                 },
                 @{
                     Name       = 'DestinationFolder'
@@ -484,16 +511,16 @@ End {
         #region Job results HTML list
         $jobResultsHtmlListItems = foreach (
             $task in
-            $Tasks | Sort-Object -Property 'SourceFolder'
+            $Tasks | Sort-Object -Property 'Source.Folder'
         ) {
             'From: {0}<br>To: {1}<br>{2}<br>Moved: {3}{4}{5}' -f
             $(
-                if ($task.SourceFolder -match '^\\\\') {
-                    '<a href="{0}">{0}</a>' -f $task.SourceFolder
+                if ($task.Source.Folder -match '^\\\\') {
+                    '<a href="{0}">{0}</a>' -f $task.Source.Folder
                 }
                 else {
-                    $uncPath = $task.SourceFolder -Replace '^.{2}', (
-                        '\\{0}\{1}$' -f $task.ComputerName, $task.SourceFolder[0]
+                    $uncPath = $task.Source.Folder -Replace '^.{2}', (
+                        '\\{0}\{1}$' -f $task.ComputerName, $task.Source.Folder[0]
                     )
                     '<a href="{0}">{0}</a>' -f $uncPath
                 }

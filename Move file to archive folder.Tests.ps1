@@ -34,7 +34,10 @@ BeforeAll {
         Tasks             = @(
             @{
                 ComputerName = 'PC1'
-                SourceFolder = $testFolder.Source
+                Source       = @{
+                    Folder  = $testFolder.Source
+                    Recurse = $false
+                }
                 Destination  = @{
                     Folder      = $testFolder.Destination
                     ChildFolder = 'Year\Month'
@@ -167,7 +170,7 @@ Describe 'send an e-mail to the admin when' {
                 }
             }
             It 'Tasks.<_> not found' -ForEach @(
-                'SourceFolder', 'Destination', 'OlderThan', 'Option'
+                'Source', 'Destination', 'OlderThan', 'Option'
             ) {
                 $testNewInputFile = Copy-ObjectHC $testInputFile
                 $testNewInputFile.Tasks[0].$_ = $null
@@ -180,6 +183,44 @@ Describe 'send an e-mail to the admin when' {
                 Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                         (&$MailAdminParams) -and
                         ($Message -like "*$ImportFile*Property 'Tasks.$_' not found*")
+                }
+                Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
+                    $EntryType -eq 'Error'
+                }
+            }
+            It 'Tasks.Source.<_> not found' -ForEach @(
+                'Folder'
+            ) {
+                $testNewInputFile = Copy-ObjectHC $testInputFile
+                $testNewInputFile.Tasks[0].Source.$_ = $null
+
+                $testNewInputFile | ConvertTo-Json -Depth 7 |
+                Out-File @testOutParams
+
+                .$testScript @testParams
+
+                Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
+                        (&$MailAdminParams) -and
+                        ($Message -like "*$ImportFile*Property 'Tasks.Source.$_' not found*")
+                }
+                Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
+                    $EntryType -eq 'Error'
+                }
+            }
+            It 'Tasks.Source.<_> not boolean' -ForEach @(
+                'Recurse'
+            ) {
+                $testNewInputFile = Copy-ObjectHC $testInputFile
+                $testNewInputFile.Tasks[0].Source.$_ = $null
+
+                $testNewInputFile | ConvertTo-Json -Depth 7 |
+                Out-File @testOutParams
+
+                .$testScript @testParams
+
+                Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
+                        (&$MailAdminParams) -and
+                        ($Message -like "*$ImportFile*Property 'Tasks.Source.$_' is not a boolean value*")
                 }
                 Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                     $EntryType -eq 'Error'
@@ -333,12 +374,13 @@ Describe 'execute the move script' {
 
         $testJobArguments = {
             ($FilePath -eq $testParams.MoveScript) -and
-            ($ArgumentList[0] -eq $testNewInputFile.Tasks[0].SourceFolder) -and
+            ($ArgumentList[0] -eq $testNewInputFile.Tasks[0].Source.Folder) -and
             ($ArgumentList[1] -eq $testNewInputFile.Tasks[0].Destination.Folder) -and
             ($ArgumentList[2] -eq $testNewInputFile.Tasks[0].Destination.ChildFolder) -and
             ($ArgumentList[3] -eq $testNewInputFile.Tasks[0].OlderThan.Unit) -and
             ($ArgumentList[4] -eq $testNewInputFile.Tasks[0].OlderThan.Quantity) -and
-            ($ArgumentList[5] -eq $testNewInputFile.Tasks[0].Option.DuplicateFile)
+            ($ArgumentList[5] -eq $testNewInputFile.Tasks[0].Source.Recurse) -and
+            ($ArgumentList[6] -eq $testNewInputFile.Tasks[0].Option.DuplicateFile)
         }
     }
     It 'with Invoke-Command when Tasks.ComputerName is not the localhost' {
@@ -387,7 +429,7 @@ Describe 'create an Excel file' {
                 @{
                     ComputerName      = $testInputFile.Tasks[0].ComputerName
                     OlderThan         = '3 Days'
-                    SourceFolder      = $testInputFile.Tasks[0].SourceFolder
+                    SourceFolder      = $testInputFile.Tasks[0].Source.Folder
                     DestinationFolder = $testData[0].DestinationFolderPath
                     FileName          = $testData[0].FileName
                     FileCreationTime  = $testData[0].FileCreationTime
@@ -397,7 +439,7 @@ Describe 'create an Excel file' {
                 @{
                     ComputerName      = $testInputFile.Tasks[0].ComputerName
                     OlderThan         = '3 Days'
-                    SourceFolder      = $testInputFile.Tasks[0].SourceFolder
+                    SourceFolder      = $testInputFile.Tasks[0].Source.Folder
                     DestinationFolder = $testData[1].DestinationFolderPath
                     FileName          = $testData[1].FileName
                     FileCreationTime  = $testData[1].FileCreationTime
@@ -442,7 +484,7 @@ Describe 'create an Excel file' {
             $testExportedExcelRows = @(
                 @{
                     ComputerName = $testInputFile.Tasks[0].ComputerName
-                    SourceFolder = $testInputFile.Tasks[0].SourceFolder
+                    SourceFolder = $testInputFile.Tasks[0].Source.Folder
                     Error        = 'Oops'
                 }
             )
