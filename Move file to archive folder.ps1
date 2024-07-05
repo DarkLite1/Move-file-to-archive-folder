@@ -138,7 +138,7 @@ Begin {
             $Tasks = $file.Tasks
             foreach ($task in $Tasks) {
                 @(
-                    'Source', 'Destination', 'OlderThan', 'Option'
+                    'Source', 'Destination', 'OlderThan'
                 ).where(
                     { -not $task.$_ }
                 ).foreach(
@@ -206,20 +206,16 @@ Begin {
                 }
                 #endregion
 
-                #region Option
-                if ($task.PSObject.Properties.Name -notContains 'Option') {
-                    throw "Input file '$ImportFile' Source.Folder '$($task.Source.Folder)': Property 'Option' not found."
-                }
-
-                if ($task.Option.PSObject.Properties.Name -notContains 'DuplicateFile') {
-                    throw "Input file '$ImportFile' Source.Folder '$($task.Source.Folder)': Property 'Option.DuplicateFile' not found."
+                #region DuplicateFile
+                if ($task.Destination.PSObject.Properties.Name -notContains 'DuplicateFile') {
+                    throw "Input file '$ImportFile' Source.Folder '$($task.Source.Folder)': Property 'Destination.DuplicateFile' not found."
                 }
 
                 if (
-                    ($task.Option.DuplicateFile) -and
-                    ($task.Option.DuplicateFile -notMatch '^OverwriteFile$|^RenameFile$')
+                    ($task.Destination.DuplicateFile) -and
+                    ($task.Destination.DuplicateFile -notMatch '^OverwriteFile$|^RenameFile$')
                 ) {
-                    throw "Input file '$ImportFile': Value '$($task.Option.DuplicateFile)' is not supported by 'Option.DuplicateFile'. Valid options are NULL, 'OverwriteFile' or 'RenameFile'."
+                    throw "Input file '$ImportFile': Value '$($task.Destination.DuplicateFile)' is not supported by 'Destination.DuplicateFile'. Valid options are NULL, 'OverwriteFile' or 'RenameFile'."
                 }
                 #endregion
             }
@@ -285,10 +281,10 @@ Process {
                     $task.OlderThan.Unit,
                     $task.OlderThan.Quantity,
                     $task.Source.Recurse,
-                    $task.Option.DuplicateFile
+                    $task.Destination.DuplicateFile
                 }
 
-                $M = "Start job on '{0}' with Source.Folder '{1}' Destination.Folder '{2}' Destination.ChildFolder '{3}' OlderThan.Unit '{4}' OlderThan.Quantity '{5}' Source.Recurse '{6}' Option.DuplicateFile '{7}'" -f $env:COMPUTERNAME,
+                $M = "Start job on '{0}' with Source.Folder '{1}' Destination.Folder '{2}' Destination.ChildFolder '{3}' OlderThan.Unit '{4}' OlderThan.Quantity '{5}' Source.Recurse '{6}' Destination.DuplicateFile '{7}'" -f $env:COMPUTERNAME,
                 $invokeParams.ArgumentList[0], $invokeParams.ArgumentList[1],
                 $invokeParams.ArgumentList[2], $invokeParams.ArgumentList[3],
                 $invokeParams.ArgumentList[4], $invokeParams.ArgumentList[5],
@@ -316,7 +312,7 @@ Process {
                 #endregion
 
                 #region Verbose
-                $M = "Task on '{0}' with Source.Folder '{1}' Destination.Folder '{2}' Destination.ChildFolder '{3}' OlderThan.Unit '{4}' OlderThan.Quantity '{5}' Source.Recurse '{6}' Option.DuplicateFile '{7}'. Results: {7}" -f $env:COMPUTERNAME,
+                $M = "Task on '{0}' with Source.Folder '{1}' Destination.Folder '{2}' Destination.ChildFolder '{3}' OlderThan.Unit '{4}' OlderThan.Quantity '{5}' Source.Recurse '{6}' Destination.DuplicateFile '{7}'. Results: {7}" -f $env:COMPUTERNAME,
                 $invokeParams.ArgumentList[0], $invokeParams.ArgumentList[1],
                 $invokeParams.ArgumentList[2], $invokeParams.ArgumentList[3],
                 $invokeParams.ArgumentList[4], $invokeParams.ArgumentList[5],

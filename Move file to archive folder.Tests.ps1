@@ -39,15 +39,13 @@ BeforeAll {
                     Recurse = $false
                 }
                 Destination  = @{
-                    Folder      = $testFolder.Destination
-                    ChildFolder = 'Year\Month'
+                    Folder        = $testFolder.Destination
+                    ChildFolder   = 'Year\Month'
+                    DuplicateFile = $null
                 }
                 OlderThan    = @{
                     Quantity = 1
                     Unit     = 'Month'
-                }
-                Option       = @{
-                    DuplicateFile = $null
                 }
             }
         )
@@ -170,7 +168,7 @@ Describe 'send an e-mail to the admin when' {
                 }
             }
             It 'Tasks.<_> not found' -ForEach @(
-                'Source', 'Destination', 'OlderThan', 'Option'
+                'Source', 'Destination', 'OlderThan'
             ) {
                 $testNewInputFile = Copy-ObjectHC $testInputFile
                 $testNewInputFile.Tasks[0].$_ = $null
@@ -331,10 +329,10 @@ Describe 'send an e-mail to the admin when' {
                     }
                 }
             }
-            Context 'Option.DuplicateFile' {
+            Context 'Destination.DuplicateFile' {
                 It 'not found' {
                     $testNewInputFile = Copy-ObjectHC $testInputFile
-                    $testNewInputFile.Tasks[0].Option.Remove('DuplicateFile')
+                    $testNewInputFile.Tasks[0].Destination.Remove('DuplicateFile')
 
                     $testNewInputFile | ConvertTo-Json -Depth 5 |
                     Out-File @testOutParams
@@ -342,7 +340,7 @@ Describe 'send an e-mail to the admin when' {
                     .$testScript @testParams
 
                     Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                        (&$MailAdminParams) -and ($Message -like "*$ImportFile*Property 'Option.DuplicateFile' not found*")
+                        (&$MailAdminParams) -and ($Message -like "*$ImportFile*Property 'Destination.DuplicateFile' not found*")
                     }
                     Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                         $EntryType -eq 'Error'
@@ -350,7 +348,7 @@ Describe 'send an e-mail to the admin when' {
                 }
                 It 'is not supported' {
                     $testNewInputFile = Copy-ObjectHC $testInputFile
-                    $testNewInputFile.Tasks[0].Option.DuplicateFile = 'wrong'
+                    $testNewInputFile.Tasks[0].Destination.DuplicateFile = 'wrong'
 
                     $testNewInputFile | ConvertTo-Json -Depth 5 |
                     Out-File @testOutParams
@@ -358,7 +356,7 @@ Describe 'send an e-mail to the admin when' {
                     .$testScript @testParams
 
                     Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                    (&$MailAdminParams) -and ($Message -like "*$ImportFile*Value 'wrong' is not supported by 'Option.DuplicateFile'. Valid options are NULL, 'OverwriteFile' or 'RenameFile'*")
+                    (&$MailAdminParams) -and ($Message -like "*$ImportFile*Value 'wrong' is not supported by 'Destination.DuplicateFile'. Valid options are NULL, 'OverwriteFile' or 'RenameFile'*")
                     }
                     Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                         $EntryType -eq 'Error'
@@ -380,7 +378,7 @@ Describe 'execute the move script' {
             ($ArgumentList[3] -eq $testNewInputFile.Tasks[0].OlderThan.Unit) -and
             ($ArgumentList[4] -eq $testNewInputFile.Tasks[0].OlderThan.Quantity) -and
             ($ArgumentList[5] -eq $testNewInputFile.Tasks[0].Source.Recurse) -and
-            ($ArgumentList[6] -eq $testNewInputFile.Tasks[0].Option.DuplicateFile)
+            ($ArgumentList[6] -eq $testNewInputFile.Tasks[0].Destination.DuplicateFile)
         }
     }
     It 'with Invoke-Command when Tasks.ComputerName is not the localhost' {
