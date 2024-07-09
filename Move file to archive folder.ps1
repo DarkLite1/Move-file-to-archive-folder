@@ -327,7 +327,7 @@ Process {
                 $invokeParams.ArgumentList[0], $invokeParams.ArgumentList[1],
                 $invokeParams.ArgumentList[2], $invokeParams.ArgumentList[3],
                 $invokeParams.ArgumentList[4], $invokeParams.ArgumentList[5],
-                $invokeParams.ArgumentList[6]
+                $invokeParams.ArgumentList[6],
                 $task.Job.Results.Count
 
                 if ($errorCount = $task.Job.Results.Where({ $_.Error }).Count) {
