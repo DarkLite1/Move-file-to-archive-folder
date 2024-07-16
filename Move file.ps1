@@ -145,7 +145,7 @@ foreach (
         Write-Verbose $result.Action
     }
     catch {
-        if ($_ -match 'file already exists') {
+        if (Test-Path -LiteralPath "$($moveParams.Destination)\$($file.Name)" -PathType 'Leaf') {
             Write-Verbose 'Duplicate file name in destination folder'
 
             $error.RemoveAt(0)
