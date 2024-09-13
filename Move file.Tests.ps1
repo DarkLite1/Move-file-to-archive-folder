@@ -241,7 +241,7 @@ Describe 'when a file is in a sub folder and Recurse is' {
 
             $testSourceFile | Should -Not -Exist
 
-            "$($testFolder.Destination)\$($testFileCreationDate.ToString('yyyy'))\$($testSourceFile.Name)"  | Should -Exist
+            "$($testFolder.Destination)\$($testFileCreationDate.ToString('yyyy'))\$($testSourceFile.Name)" | Should -Exist
         }
     }
 }
@@ -391,6 +391,8 @@ Describe 'on a successful run' {
                 $actualRow = $actual | Where-Object {
                     $_.FileName -eq $testRow.FileName
                 }
+                $actualRow.DateTime.ToString('yyyyMMdd') |
+                Should -Be (Get-Date).ToString('yyyyMMdd')
                 $actualRow.FileCreationTime.ToString('yyyyMMdd HHmmss') |
                 Should -Be $testRow.FileCreationTime.ToString('yyyyMMdd HHmmss')
                 $actualRow.DestinationFolderPath | Should -Be $testRow.DestinationFolderPath

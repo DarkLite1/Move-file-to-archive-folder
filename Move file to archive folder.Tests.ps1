@@ -10,6 +10,7 @@ BeforeAll {
 
     $testData = @(
         [PSCustomObject]@{
+            DateTime              = Get-Date
             FileName              = 'File1.txt'
             FileCreationTime      = Get-Date
             DestinationFolderPath = 'z:\Folder'
@@ -17,6 +18,7 @@ BeforeAll {
             Error                 = $null
         }
         [PSCustomObject]@{
+            DateTime              = Get-Date
             FileName              = 'File2.txt'
             FileCreationTime      = Get-Date
             DestinationFolderPath = 'z:\Folder'
@@ -425,6 +427,7 @@ Describe 'create an Excel file' {
         BeforeAll {
             $testExportedExcelRows = @(
                 @{
+                    DateTime          = Get-Date
                     ComputerName      = $testInputFile.Tasks[0].ComputerName
                     OlderThan         = '3 Days'
                     SourceFolder      = $testInputFile.Tasks[0].Source.Folder
@@ -435,6 +438,7 @@ Describe 'create an Excel file' {
                     Error             = $testData[0].Error
                 }
                 @{
+                    DateTime          = Get-Date
                     ComputerName      = $testInputFile.Tasks[0].ComputerName
                     OlderThan         = '3 Days'
                     SourceFolder      = $testInputFile.Tasks[0].Source.Folder
@@ -461,6 +465,8 @@ Describe 'create an Excel file' {
                 $actualRow.DestinationFolder | Should -Be $testRow.DestinationFolder
                 $actualRow.FileCreationTime.ToString('yyyyMMdd HHmmss') |
                 Should -Be $testRow.FileCreationTime.ToString('yyyyMMdd HHmmss')
+                $actualRow.DateTime.ToString('yyyyMMdd') |
+                Should -Be $testRow.DateTime.ToString('yyyyMMdd')
                 $actualRow.OlderThan | Should -Be $testRow.OlderThan
                 $actualRow.Error | Should -Be $testRow.Error
                 $actualRow.Action | Should -Be $testRow.Action

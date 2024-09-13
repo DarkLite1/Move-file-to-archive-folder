@@ -404,7 +404,8 @@ End {
 
             if ($task.Job.Results) {
                 $excelWorksheet.Overview += $task.Job.Results |
-                Select-Object -Property @{
+                Select-Object -Property 'DateTime',
+                @{
                     Name       = 'ComputerName'
                     Expression = { $task.ComputerName }
                 },

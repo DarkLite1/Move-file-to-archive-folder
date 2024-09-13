@@ -91,6 +91,7 @@ foreach (
         Write-Verbose "File '$File'"
 
         $result = [PSCustomObject]@{
+            DateTime              = Get-Date
             Action                = $null
             FileName              = $file.Name
             FileCreationTime      = $file.CreationTime
